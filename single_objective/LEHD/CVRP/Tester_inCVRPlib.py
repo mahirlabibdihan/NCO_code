@@ -328,6 +328,6 @@ class VRPTester():
             # 4. Cycle until the budget is consumed.
             # self.env.valida_solution_legal(self.origin_problem, best_select_node_list)
 
-            self.env.drawPic_VRP(self.origin_problem[0,:,[0,1]], best_select_node_list[0,:,0],best_select_node_list[0,:,1],name=name)
+            # self.env.drawPic_VRP(self.origin_problem[0,:,[0,1]], best_select_node_list[0,:,0],best_select_node_list[0,:,1],name=name)
 
             return self.optimal_length.mean().item(), current_best_length.mean().item(), self.env.problem_size, name
