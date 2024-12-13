@@ -379,6 +379,10 @@ class VRPTester():
         alpha = 0.95  # Cooling rate
         temperature = T_init
 
+        # Track the best solution and its length
+        best_solution = best_select_node_list.clone()  # Initial best solution
+        best_solution_length = self.env._get_travel_distance_2(self.origin_problem, best_solution).mean().item()
+        
         for bbbb in range(budget):
             # Clear CUDA cache to manage memory
             torch.cuda.empty_cache()
@@ -399,11 +403,14 @@ class VRPTester():
             if delta_length < 0 or torch.rand(1).item() < torch.exp(torch.tensor(-delta_length / temperature)):
             # Accept the new solution
                 best_select_node_list = new_best_select_node_list
-
+                
+                # If this is the best solution found so far, update best_solution
+                if new_length.mean().item() < best_solution_length:
+                    best_solution = new_best_select_node_list
+                    best_solution_length = new_length.mean().item()
 
             # Cool down the temperature
             temperature = max(T_min, temperature * alpha)
-
 
             # Get elapsed time
             escape_time, _ = clock.get_est_string(1, 1)
@@ -414,8 +421,8 @@ class VRPTester():
                     bbbb, name, ((current_length.mean() - self.optimal_length.mean()) / self.optimal_length.mean()).item() * 100,
                     escape_time, current_length.mean().item(), self.optimal_length.mean().item(), temperature))
 
-        # Final solution length calculation
-        current_best_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
+        # Return the best solution found
+        current_best_length = self.env._get_travel_distance_2(self.origin_problem, best_solution)
         
         return current_best_length
 
