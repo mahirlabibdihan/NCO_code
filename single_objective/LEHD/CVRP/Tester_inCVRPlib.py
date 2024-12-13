@@ -395,6 +395,8 @@ class VRPTester():
                         # Step 4: Get the actual indices of the customers in the full solution
                         customer_i = selected_route[i]
                         customer_j = selected_route[j]
+                        
+                        print("Swapping customers", customer_i, "and", customer_j, "in route", selected_route)
 
                         # Swap the two customers
                         neighbor_solution[b, customer_i, 0], neighbor_solution[b, customer_j, 0] = \
