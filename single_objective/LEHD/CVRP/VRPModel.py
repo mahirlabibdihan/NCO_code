@@ -21,69 +21,42 @@ class VRPModel(nn.Module):
         problem_size = state.problems.shape[1]
         split_line = problem_size - 1
 
-        def probs_to_selected_nodes(probs_,split_line_,batch_size_):
+        def probs_to_selected_nodes(probs_, split_line_, batch_size_):
             selected_node_student_ = probs_.argmax(dim=1)  # shape: B
-            is_via_depot_student_ = selected_node_student_ >= split_line_ # Nodes with an index greater than customer_num are via depot
+            is_via_depot_student_ = selected_node_student_ >= split_line_  # Nodes with an index greater than customer_num are via depot
             not_via_depot_student_ = selected_node_student_ < split_line_
 
-            selected_flag_student_ = torch.zeros(batch_size_,dtype=torch.int)
+            selected_flag_student_ = torch.zeros(batch_size_, dtype=torch.int)
             selected_flag_student_[is_via_depot_student_] = 1
-            selected_node_student_[is_via_depot_student_] = selected_node_student_[is_via_depot_student_]-split_line_ +1
+            selected_node_student_[is_via_depot_student_] = selected_node_student_[is_via_depot_student_] - split_line_ + 1
             selected_flag_student_[not_via_depot_student_] = 0
-            selected_node_student_[not_via_depot_student_] = selected_node_student_[not_via_depot_student_]+ 1
-            return selected_node_student_, selected_flag_student_ # node 的 index 从 1 开始
+            selected_node_student_[not_via_depot_student_] = selected_node_student_[not_via_depot_student_] + 1
+            return selected_node_student_, selected_flag_student_  # Node index starts from 1
 
         if self.mode == 'train':
             remaining_capacity = state.problems[:, 1, 3]
-
             probs = self.decoder(self.encoder(state.problems,self.capacity),
                                  selected_node_list, self.capacity,remaining_capacity)
-
             selected_node_student, selected_flag_student = probs_to_selected_nodes(probs, split_line, batch_size)
-
             selected_node_teacher = solution[:, current_step,0]
-
             selected_flag_teacher = solution[:, current_step, 1]
-
             is_via_depot = selected_flag_teacher==1
             selected_node_teacher_copy = selected_node_teacher-1
             selected_node_teacher_copy[is_via_depot]+=split_line
             # print('selected_node_teacher after',selected_node_teacher)
             prob_select_node = probs[torch.arange(batch_size)[:, None], selected_node_teacher_copy[:, None]].reshape(batch_size, 1)  # shape: [B, 1]
-
             loss_node = -prob_select_node.type(torch.float64).log().mean()
 
-        # if self.mode == 'test':
 
-        #     remaining_capacity = state.problems[:, 1, 3]
-        #     # print(state.problems.shape)
-        #     if current_step <= 1:
-        #         self.encoded_nodes = self.encoder(state.problems,self.capacity)
-
-        #     probs = self.decoder(self.encoded_nodes, selected_node_list,self.capacity, remaining_capacity)
-        #     selected_node_student = probs.argmax(dim=1)  # shape: B -- Greedy Decoding
-            
-        #     is_via_depot_student = selected_node_student >= split_line  # 节点index大于 customer_num的是通过depot的
-        #     not_via_depot_student = selected_node_student < split_line
-        #     # print(selected_node_student)
-        #     selected_flag_student = torch.zeros(batch_size, dtype=torch.int)
-        #     selected_flag_student[is_via_depot_student] = 1
-        #     selected_node_student[is_via_depot_student] = selected_node_student[is_via_depot_student] - split_line + 1
-        #     selected_flag_student[not_via_depot_student] = 0
-        #     selected_node_student[not_via_depot_student] = selected_node_student[not_via_depot_student] + 1
-
-        #     selected_node_teacher = selected_node_student
-        #     selected_flag_teacher = selected_flag_student
-
-        #     loss_node = torch.tensor(0)
-        
         if self.mode == 'test':
-            beam_size = 5  # Choose a beam size
-            remaining_capacity = state.problems[:, 1, 3]
-
+            remaining_capacity = state.problems[:, 1, 3]            
             if current_step <= 1:
                 self.encoded_nodes = self.encoder(state.problems, self.capacity)
-
+            
+            #     probs = self.decoder(self.encoded_nodes, selected_node_list,self.capacity, remaining_capacity)
+            #     selected_node_student = probs.argmax(dim=1)  # shape: B -- Greedy Decoding
+        
+            beam_size = 5  # Choose a beam size
             # Initialize beams
             beams = [[([], 0.0)] for _ in range(batch_size)]  # Each batch has a list of beams, each beam is (sequence, log-prob)
 
@@ -117,6 +90,8 @@ class VRPModel(nn.Module):
 
             # Convert final_sequences into `selected_node_student` and `selected_flag_student`
             selected_node_student = torch.tensor([seq[-1] for seq in final_sequences]).to(probs.device)
+            
+            
             is_via_depot_student = selected_node_student >= split_line
             not_via_depot_student = selected_node_student < split_line
 
@@ -130,7 +105,22 @@ class VRPModel(nn.Module):
             selected_flag_teacher = selected_flag_student
 
             loss_node = torch.tensor(0, device=probs.device)
+            
+            #     is_via_depot_student = selected_node_student >= split_line  # 节点index大于 customer_num的是通过depot的
+            #     not_via_depot_student = selected_node_student < split_line
+            #     # print(selected_node_student)
+            #     selected_flag_student = torch.zeros(batch_size, dtype=torch.int)
+            #     selected_flag_student[is_via_depot_student] = 1
+            #     selected_node_student[is_via_depot_student] = selected_node_student[is_via_depot_student] - split_line + 1
+            #     selected_flag_student[not_via_depot_student] = 0
+            #     selected_node_student[not_via_depot_student] = selected_node_student[not_via_depot_student] + 1
 
+            #     selected_node_teacher = selected_node_student
+            #     selected_flag_teacher = selected_flag_student
+
+            #     loss_node = torch.tensor(0)
+        
+        
         return loss_node,selected_node_teacher,  selected_node_student,selected_flag_teacher,selected_flag_student
 
 
