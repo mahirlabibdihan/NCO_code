@@ -66,7 +66,7 @@ class VRPModel(nn.Module):
                     candidates = []
                     for seq, seq_log_prob in beams[b]:
                         probs = self.decoder(
-                            self.encoded_nodes[b:b+1],
+                            self.encoded_nodes[b:b+1],  # No need to loop, process the whole batch at once
                             torch.tensor(seq).unsqueeze(0).to(probs.device) if seq else selected_node_list[b:b+1],
                             self.capacity,
                             remaining_capacity[b:b+1]
@@ -79,7 +79,7 @@ class VRPModel(nn.Module):
                             new_log_prob = seq_log_prob + probs[0, i].item()
                             candidates.append((new_seq, new_log_prob))
 
-                    # Keep the top-k candidates
+                    # Keep the top-k candidates for each beam in the batch
                     candidates = sorted(candidates, key=lambda x: x[1], reverse=True)[:beam_size]
                     new_beams.append(candidates)
 
@@ -108,16 +108,13 @@ class VRPModel(nn.Module):
             
             #     is_via_depot_student = selected_node_student >= split_line  # 节点index大于 customer_num的是通过depot的
             #     not_via_depot_student = selected_node_student < split_line
-            #     # print(selected_node_student)
             #     selected_flag_student = torch.zeros(batch_size, dtype=torch.int)
             #     selected_flag_student[is_via_depot_student] = 1
             #     selected_node_student[is_via_depot_student] = selected_node_student[is_via_depot_student] - split_line + 1
             #     selected_flag_student[not_via_depot_student] = 0
             #     selected_node_student[not_via_depot_student] = selected_node_student[not_via_depot_student] + 1
-
             #     selected_node_teacher = selected_node_student
             #     selected_flag_teacher = selected_flag_student
-
             #     loss_node = torch.tensor(0)
         
         
