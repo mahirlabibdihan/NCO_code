@@ -350,6 +350,24 @@ class VRPTester():
         
         return current_best_length
 
+    def get_routes(self, solution):
+        problem_size = solution.shape[0]
+        # Step 1: Identify routes based on the `flag` values (1 indicates start of a new route)
+        routes = []  # This will store list of routes (each route is a list of indices)
+
+        current_route = []
+        for i in range(problem_size):
+            if solution[i, 1] == 1:  # Customer is the start of a new route
+                if current_route:  # If there are customers already in the current route, save it
+                    routes.append(current_route)
+                current_route = [i]  # Start a new route with the current customer
+            else:
+                current_route.append(i)  # Add customer to the current route
+        if current_route:  # Add the last route if it ends at the last customer
+            routes.append(current_route)
+            
+        return routes
+                
     def generate_neighbor(self, solution):
         batch_size = solution.shape[0]
         problem_size = solution.shape[1]
@@ -362,18 +380,7 @@ class VRPTester():
             current_solution = neighbor_solution[b]
 
             # Step 1: Identify routes based on the `flag` values (1 indicates start of a new route)
-            routes = []  # This will store list of routes (each route is a list of indices)
-
-            current_route = []
-            for i in range(problem_size):
-                if current_solution[i, 1] == 1:  # Customer is the start of a new route
-                    if current_route:  # If there are customers already in the current route, save it
-                        routes.append(current_route)
-                    current_route = [i]  # Start a new route with the current customer
-                else:
-                    current_route.append(i)  # Add customer to the current route
-            if current_route:  # Add the last route if it ends at the last customer
-                routes.append(current_route)
+            routes = self.get_routes(current_solution)
 
             # Step 2: Pick a random route
             if routes:
@@ -389,6 +396,27 @@ class VRPTester():
                         break
 
         return neighbor_solution
+
+    def is_valid_solution(self, solution):
+        # Validate the solution by checking demand and capacity constraints
+        # Iterate through each route (each sequence of nodes between 1 flags)
+        batch_size = solution.shape[0]
+        neighbor_solution = solution.clone()
+
+        for b in range(batch_size):
+            current_solution = neighbor_solution[b]
+            for route in self.get_routes(current_solution):
+                route_demand = 0
+                for node in route:
+                    route_demand += self.origin_problem[0, node, 1].item()  # Demand is at index 1 in the problem
+                    
+                route_capacity = self.origin_problem[0, 0, 2].item()  # Capacity of the vehicle is stored at index 2 of the depot node
+
+                # If the demand exceeds the vehicle's capacity, the solution is invalid
+                if route_demand > route_capacity:
+                    return False
+        
+        return True
 
     def iterative_solution_improvement_sa(self, episode, clock, name, batch_size, current_step, best_select_node_list):
         budget = self.env_params['RRC_budget']
@@ -415,6 +443,10 @@ class VRPTester():
             print("Shape of best_select_node_list:", best_select_node_list.shape)
             new_best_select_node_list  = self.generate_neighbor(best_select_node_list)
 
+            if not self.is_valid_solution(new_best_select_node_list):
+                raise ValueError("Invalid solution generated!")
+                
+            
             new_length = self.env._get_travel_distance_2(self.origin_problem, new_best_select_node_list)
             current_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
             delta_length = new_length.mean().item() - current_length.mean().item()
