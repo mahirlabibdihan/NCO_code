@@ -230,7 +230,7 @@ class VRPTester():
         all_selected_flag_student = []
 
         # Initialize with 1 state
-        states_k = [state.clone()]  # Start with one state
+        states_k = [state]  # Start with one state
         beam_selected_teacher = []
         beam_selected_student = []
         beam_selected_flag_teacher = []
