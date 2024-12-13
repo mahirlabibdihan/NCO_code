@@ -277,6 +277,7 @@ class VRPTester():
                 best_travel_distance = current_travel_distance
                 best_solution_idx = i  # Track the index of the best solution
         
+        print(best_select_node_list.shape(), self.origin_problem.shape())
         # Now, we have the best solution among the k solutions
         best_select_node_list = all_best_select_node_list[:, best_solution_idx, :]
 
