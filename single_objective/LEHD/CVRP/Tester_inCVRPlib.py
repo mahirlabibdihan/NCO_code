@@ -351,11 +351,15 @@ class VRPTester():
         return current_best_length
 
     def generate_neighbor(self, solution):
-        # Example: Swap two nodes in a route
-        new_solution = solution.clone()
+        # Ensure there are at least 2 nodes in the solution to swap
+        if len(solution) < 2:
+            raise ValueError("Solution must have at least 2 nodes to generate a neighbor.")
+
+        # Example: Swap two nodes in the solution
+        neighbor_solution = solution.clone()
         i, j = random.sample(range(len(solution)), 2)  # Select two random indices
-        new_solution[i], new_solution[j] = new_solution[j], new_solution[i]  # Swap nodes
-        return new_solution
+        neighbor_solution[i], neighbor_solution[j] = neighbor_solution[j], neighbor_solution[i]  # Swap nodes
+        return neighbor_solution
 
     def iterative_solution_improvement_sa(self, episode, clock, name, batch_size, current_step, best_select_node_list):
         budget = self.env_params['RRC_budget']
@@ -375,6 +379,7 @@ class VRPTester():
 
             # Randomly sample and modify the partial solution
             # best_select_node_list = self.env.vrp_whole_and_solution_subrandom_inverse(best_select_node_list)
+            print("Shape of best_select_node_list:", best_select_node_list.shape)
             new_best_select_node_list  = self.generate_neighbor(best_select_node_list)
 
             new_length = self.env._get_travel_distance_2(self.origin_problem, new_best_select_node_list)
