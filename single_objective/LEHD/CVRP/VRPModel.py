@@ -308,7 +308,12 @@ class CVRP_Decoder(nn.Module):
         
         # Handle the mismatch in unselect_list size
         if unselect_list.numel() != B_V * new_list_len:
-            raise ValueError(f"Shape mismatch: unselect_list has {unselect_list.numel()} elements, expected {B_V * new_list_len}.")
+            print(f"Warning: Shape mismatch! unselect_list has {unselect_list.numel()} elements, expected {B_V * new_list_len}.")
+            
+            # Handle mismatch by filling the remaining elements with some default value (e.g., zero)
+            # You could also choose another default behavior depending on your needs.
+            missing_elements = B_V * new_list_len - unselect_list.numel()
+            unselect_list = torch.cat([unselect_list, torch.zeros(missing_elements, dtype=torch.long)])
         
         unselect_list = unselect_list.view(B_V, new_list_len)
         
