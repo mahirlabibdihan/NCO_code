@@ -232,7 +232,7 @@ class VRPTester():
         # Main solving loop
         while not done:
             # Initialize containers for the current step's output for each beam
-            beam_loss_node = []
+            # beam_loss_node = []
             beam_selected_teacher = []
             beam_selected_student = []
             beam_selected_flag_teacher = []
@@ -251,7 +251,7 @@ class VRPTester():
                     selected_flag_student = selected_flag_teacher
 
                 # Append the results for this beam to the containers
-                beam_loss_node.append(loss_node)
+                # beam_loss_node.append(loss_node)
                 beam_selected_teacher.append(selected_teacher)
                 beam_selected_student.append(selected_student)
                 beam_selected_flag_teacher.append(selected_flag_teacher)
@@ -259,7 +259,7 @@ class VRPTester():
 
             
             # Stack the results for all beams (for each batch item)
-            beam_loss_node = torch.stack(beam_loss_node, dim=1)  # Shape: (batch_size, k, ...)
+            # beam_loss_node = torch.stack(beam_loss_node, dim=1)  # Shape: (batch_size, k, ...)
             beam_selected_teacher = torch.stack(beam_selected_teacher, dim=1)  # Shape: (batch_size, k, solution_width)
             beam_selected_student = torch.stack(beam_selected_student, dim=1)  # Shape: (batch_size, k, solution_width)
             beam_selected_flag_teacher = torch.stack(beam_selected_flag_teacher, dim=1)  # Shape: (batch_size, k, solution_width)
