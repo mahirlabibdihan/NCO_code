@@ -235,7 +235,7 @@ class CVRP_Decoder(nn.Module):
         
         print("new_list after setting -2 for selected nodes:", new_list)
         
-        unselect_list = new_list[torch.gt(new_list, -1)]
+        unselect_list = new_list[torch.ne(new_list, -2)]
         
         # Print the shape and verify the number of elements
         print(f"Expected unselect_list size: {B_V * new_list_len}")
