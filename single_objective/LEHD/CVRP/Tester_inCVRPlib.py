@@ -351,14 +351,23 @@ class VRPTester():
         return current_best_length
 
     def generate_neighbor(self, solution):
-        # Ensure there are at least 2 nodes in the solution to swap
-        if len(solution) < 2:
-            raise ValueError("Solution must have at least 2 nodes to generate a neighbor.")
+        batch_size = solution.shape[0]
+        problem_size = solution.shape[1]
 
-        # Example: Swap two nodes in the solution
+        # Clone the solution to avoid modifying the original
         neighbor_solution = solution.clone()
-        i, j = random.sample(range(len(solution)), 2)  # Select two random indices
-        neighbor_solution[i], neighbor_solution[j] = neighbor_solution[j], neighbor_solution[i]  # Swap nodes
+
+        # Iterate over each solution in the batch
+        for b in range(batch_size):
+            # Get the current solution for the batch element
+            current_solution = neighbor_solution[b]
+
+            # Select two random indices to swap within the current solution
+            i, j = random.sample(range(problem_size), 2)
+
+            # Swap the selected nodes
+            current_solution[i], current_solution[j] = current_solution[j], current_solution[i]
+        
         return neighbor_solution
 
     def iterative_solution_improvement_sa(self, episode, clock, name, batch_size, current_step, best_select_node_list):
