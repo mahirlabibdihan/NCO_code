@@ -399,9 +399,12 @@ class VRPTester():
                         print("Swapping customers", customer_i, "and", customer_j, "in route", selected_route)
 
                         # Swap the two customers
-                        # neighbor_solution[b, customer_i, 0], neighbor_solution[b, customer_j, 0] = \
-                        #     neighbor_solution[b, customer_j, 0], neighbor_solution[b, customer_i, 0]  # Swap the node values
-                            
+                        tmp_i = current_solution[customer_i].clone()
+                        tmp_j = current_solution[customer_j].clone()
+
+                        neighbor_solution[b, customer_i, 0] = tmp_j
+                        neighbor_solution[b, customer_j, 0] = tmp_i
+                        
                         print(neighbor_solution[b, customer_i, 0], neighbor_solution[b, customer_j, 0])
                         break
 
