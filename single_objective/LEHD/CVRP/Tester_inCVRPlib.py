@@ -479,9 +479,9 @@ class VRPTester():
                 best_select_node_list = new_best_select_node_list
                 
                 # If this is the best solution found so far, update best_solution
-                if new_length.mean().item() < best_solution_length:
+                if new_length.mean().item() < best_solution_length.item():
                     best_solution = new_best_select_node_list
-                    best_solution_length = new_length.mean().item()
+                    best_solution_length = new_length.mean()
 
             # Cool down the temperature
             temperature = max(T_min, temperature * alpha)
@@ -492,8 +492,8 @@ class VRPTester():
             # Log solution improvement details
             self.logger.info(
                 "RRC step{}, name:{}, gap:{:6f} %, Elapsed[{}], stu_l:{:5f} , opt_l:{:5f}, Temp:{:5f}".format(
-                    bbbb, name, ((current_length.mean() - self.optimal_length.mean()) / self.optimal_length.mean()).item() * 100,
-                    escape_time, current_length.mean().item(), self.optimal_length.mean().item(), temperature))
+                    bbbb, name, ((best_solution_length - self.optimal_length.mean()) / self.optimal_length.mean()).item() * 100,
+                    escape_time, best_solution_length.item(), self.optimal_length.mean().item(), temperature))
 
         # Return the best solution found
         current_best_length = self.env._get_travel_distance_2(self.origin_problem, best_solution)
