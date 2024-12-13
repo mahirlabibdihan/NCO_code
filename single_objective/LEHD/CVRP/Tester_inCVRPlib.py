@@ -408,13 +408,13 @@ class VRPTester():
             for route in self.get_routes(current_solution):
                 route_demand = 0
                 for node in route:
-                    route_demand += self.origin_problem[0, node, 1].item()  # Demand is at index 1 in the problem
+                    route_demand += self.origin_problem[0, node, 2].item()  # Demand is at index 1 in the problem
                     
-                route_capacity = self.origin_problem[0, 0, 2].item()  # Capacity of the vehicle is stored at index 2 of the depot node
+                route_capacity = self.origin_problem[0, 0, 3].item()  # Capacity of the vehicle is stored at index 2 of the depot node
 
                 # If the demand exceeds the vehicle's capacity, the solution is invalid
                 if route_demand > route_capacity:
-                    print(self.origin_problem)
+                    print(route_demand, route_capacity)
                     return False
         
         return True
