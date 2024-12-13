@@ -25,6 +25,44 @@ def top_k_sampling(logits, k):
     final_indices = top_k_indices.gather(-1, selected_indices.unsqueeze(-1)).squeeze(-1)
     return final_indices
 
+def nucleus_sampling(logits, p=0.9):
+    """
+    Perform Nucleus Sampling (Top-p Sampling).
+    
+    Args:
+        logits (torch.Tensor): Logits from the model, shape (batch_size, vocab_size).
+        p (float): Probability threshold for nucleus sampling (usually 0.8 to 0.95).
+        
+    Returns:
+        selected_indices (torch.Tensor): Selected token indices, shape (batch_size,).
+    """
+    # Convert logits to probabilities
+    probs = F.softmax(logits, dim=-1)
+    
+    # Sort probabilities in descending order and get their indices
+    sorted_probs, sorted_indices = torch.sort(probs, descending=True, dim=-1)
+    
+    # Compute the cumulative sum of the sorted probabilities
+    cumulative_probs = torch.cumsum(sorted_probs, dim=-1)
+    
+    # Find the cutoff where the cumulative probability exceeds p
+    cutoff_index = (cumulative_probs > p).float().sum(dim=-1).long()
+    
+    # Mask probabilities beyond the cutoff index (set them to 0)
+    mask = torch.arange(sorted_probs.size(-1), device=logits.device)[None, :] < cutoff_index.unsqueeze(-1)
+    sorted_probs = sorted_probs * mask.float()
+    
+    # Normalize the remaining probabilities
+    sorted_probs = sorted_probs / sorted_probs.sum(dim=-1, keepdim=True)
+    
+    # Sample from the truncated distribution
+    selected_indices = torch.multinomial(sorted_probs, 1).squeeze(-1)
+    
+    # Map back to the original indices
+    selected_indices = torch.gather(sorted_indices, -1, selected_indices.unsqueeze(-1)).squeeze(-1)
+    
+    return selected_indices
+
 class VRPModel(nn.Module):
 
     def __init__(self, **model_params):
@@ -79,9 +117,12 @@ class VRPModel(nn.Module):
             # selected_node_student = probs.argmax(dim=1)  # shape: B -- Greedy Decoding
             
             # Replace Greedy Decoding with Top-K Sampling
-            k = 1  # Set your desired value for k
-            selected_node_student = top_k_sampling(probs, k)  # Top-K Sampling instead of argmax
-        
+            # k = 1  # Set your desired value for k
+            # selected_node_student = top_k_sampling(probs, k)  # Top-K Sampling instead of argmax
+
+            p = 0.9  # Set your desired probability threshold (usually between 0.8 and 0.95)
+            selected_node_student = nucleus_sampling(probs, p)
+    
             is_via_depot_student = selected_node_student >= split_line  # 节点index大于 customer_num的是通过depot的
             not_via_depot_student = selected_node_student < split_line
             selected_flag_student = torch.zeros(batch_size, dtype=torch.int)
