@@ -234,7 +234,7 @@ class VRPTester():
         B_V = batch_size * 1
         while not done:
             loss_node, selected_teacher, selected_student, selected_flag_teacher, selected_flag_student = \
-                    self.model(state, self.env.selected_node_list, self.env.solution, current_step, 'greedy'
+                    self.model(state, self.env.selected_node_list, self.env.solution, current_step, 'greedy',
                                 raw_data_capacity=self.env.raw_data_capacity)  # 更新被选择的点和概率
 
             if current_step == 0:
