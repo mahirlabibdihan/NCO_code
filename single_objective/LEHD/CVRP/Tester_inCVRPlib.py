@@ -194,7 +194,7 @@ class VRPTester():
 
         return after_repair_complete_solution
 
-    def construct_initial_solution(self, batch_size, current_step, k = 5):
+    def construct_initial_solution(self, batch_size, current_step, done, k = 5):
         # Prepare batch volume
         B_V = batch_size * 1
         
@@ -286,7 +286,7 @@ class VRPTester():
                 self.optimal_length= self.env._get_travel_distance_2(self.origin_problem, self.env.solution)
                 name = 'vrp'+str(self.env.solution.shape[1])
                 
-            best_select_node_list, current_best_length = self.construct_initial_solution(batch_size, current_step)
+            best_select_node_list, current_best_length = self.construct_initial_solution(batch_size, current_step, done)
 
             print('Get first complete solution!')
 
