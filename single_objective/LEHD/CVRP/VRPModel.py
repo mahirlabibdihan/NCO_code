@@ -228,10 +228,13 @@ class CVRP_Decoder(nn.Module):
         index_2 = list.type(torch.long)
         index_1 = torch.arange(B_V, dtype=torch.long)[:, None].expand(B_V, index_2.shape[1])
         
-        print("index_1:", index_1)
-        print("index_2:", index_2)
+        print("new_list shape before modification:", new_list.shape)
+        print("new_list before modification:", new_list)
 
         new_list[index_1, index_2] = -2
+        
+        print("new_list after setting -2 for selected nodes:", new_list)
+        
         unselect_list = new_list[torch.gt(new_list, -1)]
         
         # Print the shape and verify the number of elements
