@@ -74,13 +74,92 @@ class VRPModel(nn.Module):
 
         self.encoded_nodes = None
 
-    def forward(self, state, selected_node_list, solution, current_step,raw_data_capacity=None,):
+    def greedy_decode(self, probs, split_line, batch_size):
+        """
+        Greedy decoding: Select the node with the highest probability.
+        """
+        selected_node_student = probs.argmax(dim=1)  # Shape: B -- Greedy Decoding
+
+        # Determine if the selected nodes are via depot
+        is_via_depot_student = selected_node_student >= split_line
+        not_via_depot_student = selected_node_student < split_line
+
+        # Set the flags for selected nodes
+        selected_flag_student = torch.zeros(batch_size, dtype=torch.int)
+        selected_flag_student[is_via_depot_student] = 1
+        selected_node_student[is_via_depot_student] -= split_line - 1  # Adjust depot nodes' index
+        selected_flag_student[not_via_depot_student] = 0
+        selected_node_student[not_via_depot_student] += 1  # Adjust non-depot nodes' index
+
+        # Return selected nodes and flags
+        return selected_node_student, selected_flag_student
+    
+    def beam_decode(self, probs, split_line, batch_size, beam_width=5):
+        """
+        Beam search decoding: Select the top-k nodes with the highest probabilities.
+        """
+        topk_probs, topk_indices = torch.topk(probs, beam_width, dim=1, largest=True, sorted=False)
+        
+        # Create arrays to hold the selected nodes for each beam
+        selected_node_student = topk_indices  # Shape: (batch_size, beam_width)
+        
+        # Determine if the selected nodes are via depot
+        is_via_depot_student = selected_node_student >= split_line
+        not_via_depot_student = selected_node_student < split_line
+        
+        # Initialize the flags for selected nodes for each beam
+        selected_flag_student = torch.zeros(batch_size, beam_width, dtype=torch.int)
+        
+        # Update flags and selected nodes based on depot check
+        selected_flag_student[is_via_depot_student] = 1
+        selected_flag_student[not_via_depot_student] = 0
+        selected_node_student[is_via_depot_student] -= split_line - 1  # Adjust indices for depot
+        selected_node_student[not_via_depot_student] += 1  # Adjust indices for non-depot nodes
+        
+        return selected_node_student, selected_flag_student
+
+    def forward_test(self, state, selected_node_list, current_step, split_line, batch_size, beam_width=5):
+        """
+        Main function to select decoding strategy: either 'greedy' or 'beam'.
+        """
+        remaining_capacity = state.problems[:, 1, 3]
+
+        # Encode nodes if it's the first step
+        if current_step <= 1:
+            self.encoded_nodes = self.encoder(state.problems, self.capacity)
+
+        # Get probabilities from the decoder
+        probs = self.decoder(self.encoded_nodes, selected_node_list, self.capacity, remaining_capacity)
+
+        # Choose the decoding strategy
+        # if decoding_strategy == 'greedy':
+        selected_node_student, selected_flag_student = self.greedy_decode(probs, split_line, batch_size)
+        # elif decoding_strategy == 'beam':
+        selected_node_student, selected_flag_student = self.beam_decode(probs, split_line, batch_size, beam_width)
+
+        # Set the teacher's selected nodes and flags to the student's for each beam
+        selected_node_teacher = selected_node_student.clone()
+        selected_flag_teacher = selected_flag_student.clone()
+
+        # Set the loss to zero for testing
+        loss_node = torch.tensor(0)
+
+        return loss_node, selected_node_teacher, selected_node_student, selected_flag_teacher, selected_flag_student
+        
+    def forward(self, state, selected_node_list, solution, current_step, raw_data_capacity=None):
         # solution's shape : [B, V]
+        
+        # Set the capacity from raw_data_capacity
         self.capacity = raw_data_capacity.ravel()[0].item()
+        
+        # Get the batch size and problem size
         batch_size = state.problems.shape[0]
         problem_size = state.problems.shape[1]
+        
+        # Define the split line
         split_line = problem_size - 1
 
+        # Define a helper function to convert probabilities to selected nodes
         def probs_to_selected_nodes(probs_, split_line_, batch_size_):
             selected_node_student_ = probs_.argmax(dim=1)  # shape: B
             is_via_depot_student_ = selected_node_student_ >= split_line_  # Nodes with an index greater than customer_num are via depot
@@ -93,50 +172,36 @@ class VRPModel(nn.Module):
             selected_node_student_[not_via_depot_student_] = selected_node_student_[not_via_depot_student_] + 1
             return selected_node_student_, selected_flag_student_  # Node index starts from 1
 
+        # Training mode
         if self.mode == 'train':
             remaining_capacity = state.problems[:, 1, 3]
-            probs = self.decoder(self.encoder(state.problems,self.capacity),
-                                 selected_node_list, self.capacity,remaining_capacity)
+            
+            # Get probabilities from the decoder
+            probs = self.decoder(self.encoder(state.problems, self.capacity),
+                                 selected_node_list, self.capacity, remaining_capacity)
+            
+            # Convert probabilities to selected nodes and flags
             selected_node_student, selected_flag_student = probs_to_selected_nodes(probs, split_line, batch_size)
-            selected_node_teacher = solution[:, current_step,0]
+            
+            # Get the teacher's selected nodes and flags
+            selected_node_teacher = solution[:, current_step, 0]
             selected_flag_teacher = solution[:, current_step, 1]
-            is_via_depot = selected_flag_teacher==1
-            selected_node_teacher_copy = selected_node_teacher-1
-            selected_node_teacher_copy[is_via_depot]+=split_line
-            # print('selected_node_teacher after',selected_node_teacher)
+            
+            # Adjust the teacher's selected nodes for depot
+            is_via_depot = selected_flag_teacher == 1
+            selected_node_teacher_copy = selected_node_teacher - 1
+            selected_node_teacher_copy[is_via_depot] += split_line
+            
+            # Calculate the loss for node selection
             prob_select_node = probs[torch.arange(batch_size)[:, None], selected_node_teacher_copy[:, None]].reshape(batch_size, 1)  # shape: [B, 1]
             loss_node = -prob_select_node.type(torch.float64).log().mean()
 
-
+        # Testing mode
         if self.mode == 'test':
-            remaining_capacity = state.problems[:, 1, 3]            
-            if current_step <= 1:
-                self.encoded_nodes = self.encoder(state.problems, self.capacity)
-            
-            probs = self.decoder(self.encoded_nodes, selected_node_list, self.capacity, remaining_capacity)
-            # selected_node_student = probs.argmax(dim=1)  # shape: B -- Greedy Decoding
-            
-            # Replace Greedy Decoding with Top-K Sampling
-            # k = 1  # Set your desired value for k
-            # selected_node_student = top_k_sampling(probs, k)  # Top-K Sampling instead of argmax
-
-            p = 0.8  # Set your desired probability threshold (usually between 0.8 and 0.95)
-            selected_node_student = nucleus_sampling(probs, p)
-            # print(selected_node_student)
-    
-            is_via_depot_student = selected_node_student >= split_line  # 节点index大于 customer_num的是通过depot的
-            not_via_depot_student = selected_node_student < split_line
-            selected_flag_student = torch.zeros(batch_size, dtype=torch.int)
-            selected_flag_student[is_via_depot_student] = 1
-            selected_node_student[is_via_depot_student] = selected_node_student[is_via_depot_student] - split_line + 1
-            selected_flag_student[not_via_depot_student] = 0
-            selected_node_student[not_via_depot_student] = selected_node_student[not_via_depot_student] + 1
-            selected_node_teacher = selected_node_student
-            selected_flag_teacher = selected_flag_student
-            loss_node = torch.tensor(0)
+            return self.forward_test(state, selected_node_list, current_step, split_line, batch_size)
         
-        
-        return loss_node,selected_node_teacher,  selected_node_student,selected_flag_teacher,selected_flag_student
+        # Return the loss and selected nodes and flags for both teacher and student
+        return loss_node, selected_node_teacher, selected_node_student, selected_flag_teacher, selected_flag_student
 
 
 
@@ -228,18 +293,18 @@ class CVRP_Decoder(nn.Module):
         index_2 = list.type(torch.long)
         index_1 = torch.arange(B_V, dtype=torch.long)[:, None].expand(B_V, index_2.shape[1])
         
-        print("new_list shape before modification:", new_list.shape)
-        print("new_list before modification:", new_list)
+        # print("new_list shape before modification:", new_list.shape)
+        # print("new_list before modification:", new_list)
 
         new_list[index_1, index_2] = -2
         
-        print("new_list after setting -2 for selected nodes:", new_list)
+        # print("new_list after setting -2 for selected nodes:", new_list)
         
         unselect_list = new_list[torch.ne(new_list, -2)]
         
         # Print the shape and verify the number of elements
-        print(f"Expected unselect_list size: {B_V * new_list_len}")
-        print(f"Actual unselect_list size: {unselect_list.numel()}")
+        # print(f"Expected unselect_list size: {B_V * new_list_len}")
+        # print(f"Actual unselect_list size: {unselect_list.numel()}")
         
         # Handle the mismatch in unselect_list size
         if unselect_list.numel() != B_V * new_list_len:

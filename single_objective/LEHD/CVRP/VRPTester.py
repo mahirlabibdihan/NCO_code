@@ -218,7 +218,71 @@ class VRPTester():
         # Return the complete solution after repair
         return after_repair_complete_solution
 
+    def construct_initial_solution(self, batch_size, current_step, k = 5):
+        # Prepare batch volume
+        B_V = batch_size * 1
+        
+        # Main solving loop
+        while not done:
+            # Run the model to select nodes and get selection probabilities
+            loss_node, selected_teacher, selected_student, selected_flag_teacher, selected_flag_student = \
+                self.model(state, self.env.selected_node_list, self.env.solution, current_step,
+                        raw_data_capacity=self.env.raw_data_capacity)
 
+            # For the first step, set all flags to 1 for each of the k solutions
+            if current_step == 0:
+                selected_flag_teacher = torch.ones(batch_size, k, dtype=torch.int)  # Shape: (B_V, k)
+                selected_flag_student = selected_flag_teacher
+
+            # Increment step counter
+            current_step += 1
+
+            # Loop over k solutions here for each batch instance
+            for i in range(k):
+                # Extract one solution (i-th solution in the batch)
+                selected_teacher_i = selected_teacher[:, i]
+                selected_student_i = selected_student[:, i]
+                selected_flag_teacher_i = selected_flag_teacher[:, i]
+                selected_flag_student_i = selected_flag_student[:, i]
+
+                # Call the step function for the i-th solution
+                state, reward, reward_student, done = self.env.step(
+                    selected_teacher_i, selected_student_i, selected_flag_teacher_i, selected_flag_student_i
+                )
+                
+        # Combine selected student nodes and their flags for all k solutions
+        all_selected_node_lists = self.env.selected_student_list.reshape(batch_size, -1, 1)
+        all_selected_flag_lists = self.env.selected_student_flag.reshape(batch_size, -1, 1)
+        
+        # Concatenate to get the full list of nodes and flags for all k solutions
+        all_best_select_node_list = torch.cat(
+            (all_selected_node_lists, all_selected_flag_lists), dim=2
+        )  # Shape: [batch_size, k, 2]
+
+            # Initialize variables to track the best solution and its travel distance
+        best_solution_idx = None
+        best_travel_distance = float('inf')  # Start with a very large number
+        
+            # Loop through each solution (among k solutions)
+        for i in range(all_best_select_node_list.shape[1]):  # Loop over k solutions
+            best_select_node_list = all_best_select_node_list[:, i, :]  # Shape: [batch_size, 2]
+
+            # Calculate the travel distance for the current solution
+            current_travel_distance = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
+            
+            # If the current solution is better (has a shorter distance), update the best solution
+            if current_travel_distance < best_travel_distance:
+                best_travel_distance = current_travel_distance
+                best_solution_idx = i  # Track the index of the best solution
+        
+        # Now, we have the best solution among the k solutions
+        best_select_node_list = all_best_select_node_list[:, best_solution_idx, :]
+
+        # Calculate the length of the best solution
+        current_best_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
+        
+        return best_select_node_list, current_best_length
+        
     def _test_one_batch(self, episode, batch_size, clock=None, logger=None):
         """
         Test a batch of Vehicle Routing Problems (VRP) using a machine learning model.
@@ -262,37 +326,9 @@ class VRPTester():
             # Create a problem name based on solution shape
             name = 'vrp'+str(self.env.solution.shape[1])
 
-            # Prepare batch volume
-            B_V = batch_size * 1
-
-            # Main solving loop
-            while not done:
-                # Run the model to select nodes and get selection probabilities
-                loss_node, selected_teacher, selected_student, selected_flag_teacher, selected_flag_student = \
-                    self.model(state, self.env.selected_node_list, self.env.solution, current_step,
-                            raw_data_capacity=self.env.raw_data_capacity)
-
-                # For the first step, set all flags to 1
-                if current_step == 0:
-                    selected_flag_teacher = torch.ones(B_V, dtype=torch.int)
-                    selected_flag_student = selected_flag_teacher
-
-                # Increment step counter
-                current_step += 1
-
-                # Take a step in the environment with selected nodes
-                state, reward, reward_student, done = \
-                    self.env.step(selected_teacher, selected_student, selected_flag_teacher, selected_flag_student)
-
+            best_select_node_list, current_best_length = self.construct_initial_solution(batch_size, current_step)
             print('Get first complete solution!')
-
-            # Combine selected student nodes and their flags
-            best_select_node_list = torch.cat((self.env.selected_student_list.reshape(batch_size, -1, 1),
-                                            self.env.selected_student_flag.reshape(batch_size, -1, 1)), dim=2)
-
-            # Calculate the length of the current best solution
-            current_best_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
-
+            
             # Get elapsed time
             escape_time, _ = clock.get_est_string(1, 1)
 
