@@ -199,7 +199,7 @@ class VRPModel(nn.Module):
         # Testing mode
         if self.mode == 'test':
             print("Decoding strategy:", decoding_strategy)
-            return self.forward_test(state, selected_node_list, current_step, split_line, decoding_strategy, batch_size)
+            return self.forward_test(state, selected_node_list, current_step, split_line, batch_size, decoding_strategy)
         
         # Return the loss and selected nodes and flags for both teacher and student
         return loss_node, selected_node_teacher, selected_node_student, selected_flag_teacher, selected_flag_student
