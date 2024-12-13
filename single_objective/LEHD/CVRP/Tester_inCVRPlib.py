@@ -351,30 +351,43 @@ class VRPTester():
         return current_best_length
 
     def generate_neighbor(self, solution):
-        # solution: [batch_size, problem_size, 2]
-        # The last 2 dimensions represent the selected node and the selected flag
-        
-        print(solution)
-        
-        raise ValueError("Hi")
         batch_size = solution.shape[0]
         problem_size = solution.shape[1]
         
-
-        # Clone the solution to avoid modifying the original
+        # Create a clone of the solution to modify it
         neighbor_solution = solution.clone()
 
-        # Iterate over each solution in the batch
         for b in range(batch_size):
-            # Get the current solution for the batch element
+            # Extract the current solution for the batch
             current_solution = neighbor_solution[b]
 
-            # Select two random indices to swap within the current solution
-            i, j = random.sample(range(problem_size), 2)
+            # Step 1: Identify routes based on the `flag` values (1 indicates start of a new route)
+            routes = []  # This will store list of routes (each route is a list of indices)
 
-            # Swap the selected nodes
-            current_solution[i], current_solution[j] = current_solution[j], current_solution[i]
-        
+            current_route = []
+            for i in range(problem_size):
+                if current_solution[i, 1] == 1:  # Customer is the start of a new route
+                    if current_route:  # If there are customers already in the current route, save it
+                        routes.append(current_route)
+                    current_route = [i]  # Start a new route with the current customer
+                else:
+                    current_route.append(i)  # Add customer to the current route
+            if current_route:  # Add the last route if it ends at the last customer
+                routes.append(current_route)
+
+            # Step 2: Pick a random route
+            if routes:
+                while True:
+                    selected_route = random.choice(routes)  # Randomly choose a route
+                    # Ensure there are at least 2 customers in the route to swap
+                    if len(selected_route) > 1:
+                        # Step 3: Pick two random customers from the selected route
+                        i, j = random.sample(selected_route, 2)  # Pick two random indices from the route
+                        # Swap the two customers
+                        neighbor_solution[b, i, 0], neighbor_solution[b, j, 0] = \
+                            neighbor_solution[b, j, 0], neighbor_solution[b, i, 0]  # Swap the node values
+                        break
+
         return neighbor_solution
 
     def iterative_solution_improvement_sa(self, episode, clock, name, batch_size, current_step, best_select_node_list):
