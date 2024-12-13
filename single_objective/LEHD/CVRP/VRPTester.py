@@ -168,9 +168,12 @@ class VRPTester():
         # Return final scores and performance gap
         return score_AM.avg, score_student_AM.avg, gap_
 
-    def decide_whether_to_repair_solution(self,
-                                          after_repair_sub_solution, before_reward, after_reward,
-                                          first_node_index, length_of_subpath, double_solution):
+    def decide_whether_to_repair_solution(self, after_repair_sub_solution, before_reward, after_reward, 
+                                        first_node_index, length_of_subpath, double_solution, temperature):
+        """
+        Decide whether to replace the current solution with the repaired solution, 
+        based on simulated annealing criteria.
+        """
 
         # Calculate the whole problem size
         the_whole_problem_size = int(double_solution.shape[1] / 2)
@@ -199,8 +202,14 @@ class VRPTester():
         # Update the after repair sub-solution
         after_repair_sub_solution[:, :, 0] = kkk_2
 
-        # Determine if repair is needed
-        if_repair = before_reward > after_reward
+        # Calculate reward difference
+        delta_reward = after_reward - before_reward
+
+        # Simulated annealing acceptance probability
+        acceptance_probability = torch.exp(-delta_reward / temperature).clamp(max=1.0).item()
+
+        # Determine if repair is needed (always accept better solutions or probabilistically accept worse ones)
+        if_repair = (before_reward > after_reward) | (torch.rand(1).item() < acceptance_probability)
 
         # Update the double solution if repair is needed
         need_to_repari_double_solution = double_solution[if_repair]
@@ -218,7 +227,33 @@ class VRPTester():
         # Return the complete solution after repair
         return after_repair_complete_solution
 
-    def construct_initial_solution(self, batch_size, current_step, k = 5):
+    def construct_initial_solution(self, batch_size, current_step):
+        # Prepare initial state and get first step information
+        state, reward, reward_student, done = self.env.pre_step()
+        # Prepare batch volume
+        B_V = batch_size * 1
+        while not done:
+            loss_node, selected_teacher, selected_student, selected_flag_teacher, selected_flag_student = \
+                    self.model(state, self.env.selected_node_list, self.env.solution, current_step, 'greedy'
+                                raw_data_capacity=self.env.raw_data_capacity)  # 更新被选择的点和概率
+
+            if current_step == 0:
+                selected_flag_teacher = torch.ones(B_V, dtype=torch.int)
+                selected_flag_student = selected_flag_teacher
+            current_step += 1
+
+            state, reward, reward_student, done = \
+                self.env.step(selected_teacher, selected_student, selected_flag_teacher, selected_flag_student)
+
+
+            best_select_node_list = torch.cat((self.env.selected_student_list.reshape(batch_size, -1, 1),
+                                                self.env.selected_student_flag.reshape(batch_size, -1, 1)), dim=2)
+
+            current_best_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
+            
+        return best_select_node_list, current_best_length
+
+    def construct_initial_solution_beam(self, batch_size, current_step, k = 5):
         # Prepare initial state and get first step information
         state, reward, reward_student, done = self.env.pre_step()
         # Prepare batch volume
@@ -235,6 +270,8 @@ class VRPTester():
         beam_selected_student = []
         beam_selected_flag_teacher = []
         beam_selected_flag_student = []
+        
+        beams = []  # To hold the new expanded states
         # Main solving loop
         while not done:
             # Initialize containers for the current step's output for each beam
@@ -243,16 +280,16 @@ class VRPTester():
             beam_selected_flag_teacher.clear()
             beam_selected_flag_student.clear()
 
+            # For the first step, set all flags to 1 for each of the k solutions
+            if current_step == 0:
+                selected_flag_teacher = torch.ones(batch_size, k, dtype=torch.int)  # Shape: (B_V, k)
+                selected_flag_student = selected_flag_teacher
+                    
             for beam_idx in range(len(states_k)):  # Loop through the current states
                 # Run the model for each beam and get selection probabilities
-                loss_node, selected_teacher, selected_student, selected_flag_teacher, selected_flag_student = \
+                loss_node, selected_teacher, selected_student, selected_flag_teacher, selected_flag_student, topk_probs = \
                     self.model(states_k[beam_idx], self.env.selected_node_list, self.env.solution, current_step,
                             raw_data_capacity=self.env.raw_data_capacity)
-
-                # For the first step, set all flags to 1 for each of the k solutions
-                if current_step == 0:
-                    selected_flag_teacher = torch.ones(batch_size, dtype=torch.int)  # Shape: (B_V,)
-                    selected_flag_student = selected_flag_teacher
 
                 # Store the results for the current beam
                 beam_selected_teacher.append(selected_teacher)
@@ -260,6 +297,8 @@ class VRPTester():
                 beam_selected_flag_teacher.append(selected_flag_teacher)
                 beam_selected_flag_student.append(selected_flag_student)
 
+            # Increment step counter
+            current_step += 1
             
             # Stack the results for the current step
             beam_selected_teacher = torch.stack(beam_selected_teacher, dim=1)  # Shape: (batch_size, k, solution_width)
@@ -279,9 +318,7 @@ class VRPTester():
                     selected_teacher_i, selected_student_i, selected_flag_teacher_i, selected_flag_student_i
                 )
 
-                # If we're still within the limit of k states, expand the states
-                if len(states_k) < k:
-                    states_k.append(state.clone())  # Expand with the new state
+                states_k.append(state)  # Expand with the new state
 
                 # Store the selected nodes for the current solution
                 all_selected_teacher.append(selected_teacher_i)
@@ -289,8 +326,7 @@ class VRPTester():
                 all_selected_flag_teacher.append(selected_flag_teacher_i)
                 all_selected_flag_student.append(selected_flag_student_i)
 
-            # Increment step counter
-            current_step += 1
+            
                     
         # After the loop, we have selected results for the solutions at each step
         all_selected_teacher = torch.stack(all_selected_teacher, dim=1)  # Shape: (batch_size, k, solution_width)
@@ -321,7 +357,100 @@ class VRPTester():
         current_best_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
 
         return best_select_node_list, current_best_length
+    
+    def iterative_solution_improvement(self, episode, clock, name, batch_size, current_step, best_select_node_list):
+        budget = self.env_params['RRC_budget']
+
+        # Simulated Annealing Parameters
+        T_init = 100  # Initial temperature
+        T_min = 1e-3  # Minimum temperature
+        alpha = 0.95  # Cooling rate
+        temperature = T_init
+
+        for bbbb in range(budget):
+            # Clear CUDA cache to manage memory
+            torch.cuda.empty_cache()
+
+            # Reload problems
+            self.env.load_problems(episode, batch_size)
+
+            # Randomly sample and modify the partial solution
+            best_select_node_list = self.env.vrp_whole_and_solution_subrandom_inverse(best_select_node_list)
+
+            # Destroy and partially reconstruct the solution
+            partial_solution_length, first_node_index, length_of_subpath, double_solution = \
+                self.env.destroy_solution(self.env.problems, best_select_node_list)
+
+            # Store solution before repair
+            before_repair_sub_solution = self.env.solution
+            before_reward = partial_solution_length
+
+            # Reset environment and prepare for solution reconstruction
+            current_step = 0
+            reset_state, _, _ = self.env.reset(self.env_params['mode'])
+            state, reward, reward_student, done = self.env.pre_step()
+
+            # Solution reconstruction loop
+            while not done:
+                # For the first step, use initial solution nodes
+                if current_step == 0:
+                    selected_teacher = self.env.solution[:, 0, 0]
+                    selected_flag_teacher = self.env.solution[:, 0, 1]
+                    selected_student = selected_teacher
+                    selected_flag_student = selected_flag_teacher
+                else:
+                    # Run model to select nodes for reconstruction
+                    _, selected_teacher, selected_student, selected_flag_teacher, selected_flag_student = \
+                        self.model(state, self.env.selected_node_list, self.env.solution, current_step,
+                                raw_data_capacity=self.env.raw_data_capacity)
+
+                current_step += 1
+
+                # Take a step in the environment
+                state, reward, reward_student, done = \
+                    self.env.step(selected_teacher, selected_student, selected_flag_teacher, selected_flag_student)
+
+            # Prepare reconstructed solution
+            ahter_repair_sub_solution = torch.cat((self.env.selected_student_list.unsqueeze(2),
+                                                self.env.selected_student_flag.unsqueeze(2)), dim=2)
+
+            after_reward = - reward_student
+
+            # Decide whether to keep the repaired solution using Simulated Annealing
+            after_repair_complete_solution = self.decide_whether_to_repair_solution(
+                ahter_repair_sub_solution,
+                before_reward, after_reward, first_node_index, length_of_subpath, double_solution, temperature
+            )
+
+
+            new_length = self.env._get_travel_distance_2(self.origin_problem, after_repair_complete_solution)
+
+            # Simulated Annealing Acceptance Criteria
+            current_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
+            delta_length = new_length.mean().item() - current_length.mean().item()
+
+            if delta_length < 0 or torch.rand(1).item() < torch.exp(-delta_length / temperature):
+                # Accept the new solution
+                best_select_node_list = after_repair_complete_solution
+
+            # Cool down the temperature
+            temperature = max(T_min, temperature * alpha)
+
+            # Get elapsed time
+            escape_time, _ = clock.get_est_string(1, 1)
+
+            # Log solution improvement details
+            self.logger.info(
+                "RRC step{}, name:{}, gap:{:6f} %, Elapsed[{}], stu_l:{:5f} , opt_l:{:5f}, Temp:{:5f}".format(
+                    bbbb, name, ((current_length.mean() - self.optimal_length.mean()) / self.optimal_length.mean()).item() * 100,
+                    escape_time, current_length.mean().item(), self.optimal_length.mean().item(), temperature))
+
+        # Final solution length calculation
+        current_best_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
         
+        return current_best_length
+
+
     def _test_one_batch(self, episode, batch_size, clock=None, logger=None):
         """
         Test a batch of Vehicle Routing Problems (VRP) using a machine learning model.
@@ -353,8 +482,6 @@ class VRPTester():
             # Initialize step counter
             current_step = 0
 
-            
-
             # Store the original problem for comparison
             self.origin_problem = self.env.problems.clone().detach()
 
@@ -376,79 +503,9 @@ class VRPTester():
                 current_best_length.mean().item(), self.optimal_length.mean().item()))
 
             # Iterative solution improvement
-            budget = self.env_params['RRC_budget']
-
-            for bbbb in range(budget):
-                # Clear CUDA cache to manage memory
-                torch.cuda.empty_cache()
-
-                # Reload problems
-                self.env.load_problems(episode, batch_size)
-
-                # Randomly sample and modify the partial solution
-                best_select_node_list = self.env.vrp_whole_and_solution_subrandom_inverse(best_select_node_list)
-
-                # Destroy and partially reconstruct the solution
-                partial_solution_length, first_node_index, length_of_subpath, double_solution = \
-                    self.env.destroy_solution(self.env.problems, best_select_node_list)
-
-                # Store solution before repair
-                before_repair_sub_solution = self.env.solution
-                before_reward = partial_solution_length
-
-                # Reset environment and prepare for solution reconstruction
-                current_step = 0
-                reset_state, _, _ = self.env.reset(self.env_params['mode'])
-                state, reward, reward_student, done = self.env.pre_step()
-
-                # Solution reconstruction loop
-                while not done:
-                    # For the first step, use initial solution nodes
-                    if current_step == 0:
-                        selected_teacher = self.env.solution[:, 0, 0]
-                        selected_flag_teacher = self.env.solution[:, 0, 1]
-                        selected_student = selected_teacher
-                        selected_flag_student = selected_flag_teacher
-                    else:
-                        # Run model to select nodes for reconstruction
-                        _, selected_teacher, selected_student, selected_flag_teacher, selected_flag_student = \
-                            self.model(state, self.env.selected_node_list, self.env.solution, current_step,
-                                    raw_data_capacity=self.env.raw_data_capacity)
-
-                    current_step += 1
-
-                    # Take a step in the environment
-                    state, reward, reward_student, done = \
-                        self.env.step(selected_teacher, selected_student, selected_flag_teacher, selected_flag_student)
-
-                # Prepare reconstructed solution
-                ahter_repair_sub_solution = torch.cat((self.env.selected_student_list.unsqueeze(2),
-                                                    self.env.selected_student_flag.unsqueeze(2)), dim=2)
-
-                after_reward = - reward_student
-
-                # Decide whether to keep the repaired solution
-                after_repair_complete_solution = self.decide_whether_to_repair_solution(
-                    ahter_repair_sub_solution,
-                    before_reward, after_reward, first_node_index, length_of_subpath, double_solution)
-
-                # Update best solution
-                best_select_node_list = after_repair_complete_solution
-
-                # Calculate current solution length
-                current_best_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
-
-                # Get elapsed time
-                escape_time, _ = clock.get_est_string(1, 1)
-
-                # Log solution improvement details
-                self.logger.info(
-                    "RRC step{}, name:{}, gap:{:6f} %, Elapsed[{}], stu_l:{:5f} , opt_l:{:5f}".format(
-                        bbbb, name, ((current_best_length.mean() - self.optimal_length.mean()) / self.optimal_length.mean()).item() * 100,
-                        escape_time, current_best_length.mean().item(), self.optimal_length.mean().item()))
-
-            # Final solution length calculation
-            current_best_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
+            current_best_length = self.iterative_solution_improvement(
+                episode, clock, name,  batch_size, current_step, best_select_node_list
+            )
             
             # Print final results
             print(f'current_best_length', (current_best_length.mean() - self.optimal_length.mean())

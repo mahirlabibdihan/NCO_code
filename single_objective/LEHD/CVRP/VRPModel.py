@@ -116,9 +116,9 @@ class VRPModel(nn.Module):
         selected_node_student[is_via_depot_student] -= split_line - 1  # Adjust indices for depot
         selected_node_student[not_via_depot_student] += 1  # Adjust indices for non-depot nodes
         
-        return selected_node_student, selected_flag_student
+        return selected_node_student, selected_flag_student, topk_probs
 
-    def forward_test(self, state, selected_node_list, current_step, split_line, batch_size, beam_width=5):
+    def forward_test(self, state, selected_node_list, current_step, split_line, batch_size, decoding_strategy, beam_width=5):
         """
         Main function to select decoding strategy: either 'greedy' or 'beam'.
         """
@@ -132,10 +132,10 @@ class VRPModel(nn.Module):
         probs = self.decoder(self.encoded_nodes, selected_node_list, self.capacity, remaining_capacity)
 
         # Choose the decoding strategy
-        # if decoding_strategy == 'greedy':
-        selected_node_student, selected_flag_student = self.greedy_decode(probs, split_line, batch_size)
-        # elif decoding_strategy == 'beam':
-        selected_node_student, selected_flag_student = self.beam_decode(probs, split_line, batch_size, beam_width)
+        if decoding_strategy == 'greedy':
+            selected_node_student, selected_flag_student = self.greedy_decode(probs, split_line, batch_size)
+        elif decoding_strategy == 'beam':
+            selected_node_student, selected_flag_student, topk_probs = self.beam_decode(probs, split_line, batch_size, beam_width)
 
         # Set the teacher's selected nodes and flags to the student's for each beam
         selected_node_teacher = selected_node_student.clone()
@@ -144,9 +144,9 @@ class VRPModel(nn.Module):
         # Set the loss to zero for testing
         loss_node = torch.tensor(0)
 
-        return loss_node, selected_node_teacher, selected_node_student, selected_flag_teacher, selected_flag_student
+        return loss_node, selected_node_teacher, selected_node_student, selected_flag_teacher, selected_flag_student, topk_probs
         
-    def forward(self, state, selected_node_list, solution, current_step, raw_data_capacity=None):
+    def forward(self, state, selected_node_list, solution, current_step, decoding_strategy, raw_data_capacity=None):
         # solution's shape : [B, k, V]
         
         # Set the capacity from raw_data_capacity
@@ -198,7 +198,7 @@ class VRPModel(nn.Module):
 
         # Testing mode
         if self.mode == 'test':
-            return self.forward_test(state, selected_node_list, current_step, split_line, batch_size)
+            return self.forward_test(state, selected_node_list, current_step, split_line, decoding_strategy, batch_size)
         
         # Return the loss and selected nodes and flags for both teacher and student
         return loss_node, selected_node_teacher, selected_node_student, selected_flag_teacher, selected_flag_student
