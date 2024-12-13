@@ -249,10 +249,13 @@ class VRPTester():
                     # Take a step in the environment with selected nodes
                     new_state, reward, reward_student, done = \
                         self.env.step(selected_teacher, selected_student, selected_flag_teacher, selected_flag_student)
-                        
-                    # Calculate the new cumulative score (you can use a reward function or log probability here)
-                    new_cumulative_score = cumulative_score + reward_student.item()
                     
+                    # Calculate the new cumulative score (you can use a reward function or log probability here)
+                    if reward_student is not None:
+                        new_cumulative_score = cumulative_score + reward_student.item()
+                    else:
+                        new_cumulative_score = cumulative_score  # No change if reward_student is None
+    
                     # Update the solution with the new state (as the solution will change after each step)
                     new_solution = self.env.solution  # assuming solution is updated in the environment
                 
