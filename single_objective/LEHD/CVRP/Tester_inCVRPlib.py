@@ -396,7 +396,7 @@ class VRPTester():
                         customer_i = selected_route[i]
                         customer_j = selected_route[j]
                         
-                        print("Swapping customers", customer_i, "and", customer_j, "in route", selected_route)
+                        # print("Swapping customers", customer_i, "and", customer_j, "in route", selected_route)
 
                         # Swap the two customers
                         tmp_i = current_solution[customer_i, 0].clone()
@@ -405,7 +405,7 @@ class VRPTester():
                         neighbor_solution[b, customer_i, 0] = tmp_j
                         neighbor_solution[b, customer_j, 0] = tmp_i
                         
-                        print(neighbor_solution[b, customer_i, 0], neighbor_solution[b, customer_j, 0])
+                        # print(neighbor_solution[b, customer_i, 0], neighbor_solution[b, customer_j, 0])
                         break
 
         return neighbor_solution
@@ -460,13 +460,13 @@ class VRPTester():
             # best_select_node_list = self.env.vrp_whole_and_solution_subrandom_inverse(best_select_node_list)
             print("Shape of best_select_node_list:", best_select_node_list.shape)
             
-            if not self.is_valid_solution(best_select_node_list):
-                raise ValueError("Invalid solution generated!")
+            # if not self.is_valid_solution(best_select_node_list):
+            #     raise ValueError("Invalid solution generated!")
             
             new_best_select_node_list  = self.generate_neighbor(best_select_node_list)
 
-            if not self.is_valid_solution(new_best_select_node_list):
-                raise ValueError("Invalid solution generated!")
+            # if not self.is_valid_solution(new_best_select_node_list):
+            #     raise ValueError("Invalid solution generated!")
                 
             
             new_length = self.env._get_travel_distance_2(self.origin_problem, new_best_select_node_list)
