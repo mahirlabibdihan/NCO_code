@@ -447,7 +447,7 @@ class VRPTester():
 
         # Track the best solution and its length
         best_solution = best_select_node_list.clone()  # Initial best solution
-        best_solution_length = self.env._get_travel_distance_2(self.origin_problem, best_solution).mean().item()
+        best_solution_length = self.env._get_travel_distance_2(self.origin_problem, best_solution).mean()
         
         for bbbb in range(budget):
             # Clear CUDA cache to manage memory
