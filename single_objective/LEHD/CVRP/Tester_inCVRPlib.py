@@ -223,7 +223,7 @@ class VRPTester():
             B_V = batch_size * 1
             
             # Initialize the beam list (list of candidates)
-            beam_size = 10  # You can adjust this value for your case
+            beam_size = 20  # You can adjust this value for your case
             beam_list = []
 
             # Add the initial state to the beam list
