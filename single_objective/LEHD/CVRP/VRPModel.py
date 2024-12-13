@@ -144,7 +144,7 @@ class VRPModel(nn.Module):
         # Set the loss to zero for testing
         loss_node = torch.tensor(0)
 
-        return loss_node, selected_node_teacher, selected_node_student, selected_flag_teacher, selected_flag_student, topk_probs
+        return loss_node, selected_node_teacher, selected_node_student, selected_flag_teacher, selected_flag_student
         
     def forward(self, state, selected_node_list, solution, current_step, decoding_strategy, raw_data_capacity=None):
         # solution's shape : [B, k, V]
