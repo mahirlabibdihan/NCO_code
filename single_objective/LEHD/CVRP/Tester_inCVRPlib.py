@@ -417,6 +417,7 @@ class VRPTester():
                     print(route_demand, route_capacity)
                     return False
         
+        print(route_demand, route_capacity)
         return True
 
     def iterative_solution_improvement_sa(self, episode, clock, name, batch_size, current_step, best_select_node_list):
@@ -442,6 +443,10 @@ class VRPTester():
             # Randomly sample and modify the partial solution
             # best_select_node_list = self.env.vrp_whole_and_solution_subrandom_inverse(best_select_node_list)
             print("Shape of best_select_node_list:", best_select_node_list.shape)
+            
+            if not self.is_valid_solution(best_select_node_list):
+                raise ValueError("Invalid solution generated!")
+            
             new_best_select_node_list  = self.generate_neighbor(best_select_node_list)
 
             if not self.is_valid_solution(new_best_select_node_list):
