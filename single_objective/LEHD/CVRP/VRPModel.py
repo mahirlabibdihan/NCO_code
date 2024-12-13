@@ -147,7 +147,7 @@ class VRPModel(nn.Module):
         return loss_node, selected_node_teacher, selected_node_student, selected_flag_teacher, selected_flag_student
         
     def forward(self, state, selected_node_list, solution, current_step, raw_data_capacity=None):
-        # solution's shape : [B, V]
+        # solution's shape : [B, k, V]
         
         # Set the capacity from raw_data_capacity
         self.capacity = raw_data_capacity.ravel()[0].item()

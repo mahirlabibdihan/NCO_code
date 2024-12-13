@@ -224,67 +224,97 @@ class VRPTester():
         # Prepare batch volume
         B_V = batch_size * 1
         
+        all_selected_teacher = []
+        all_selected_student = []
+        all_selected_flag_teacher = []
+        all_selected_flag_student = []
+    
         # Main solving loop
         while not done:
-            # Run the model to select nodes and get selection probabilities
-            loss_node, selected_teacher, selected_student, selected_flag_teacher, selected_flag_student = \
-                self.model(state, self.env.selected_node_list, self.env.solution, current_step,
-                        raw_data_capacity=self.env.raw_data_capacity)
+            # Initialize containers for the current step's output for each beam
+            beam_loss_node = []
+            beam_selected_teacher = []
+            beam_selected_student = []
+            beam_selected_flag_teacher = []
+            beam_selected_flag_student = []
 
-            # For the first step, set all flags to 1 for each of the k solutions
-            if current_step == 0:
-                selected_flag_teacher = torch.ones(batch_size, k, dtype=torch.int)  # Shape: (B_V, k)
-                selected_flag_student = selected_flag_teacher
 
-            # Increment step counter
-            current_step += 1
+            for beam_idx in range(k):
+                # Run the model to select nodes and get selection probabilities for the current beam
+                loss_node, selected_teacher, selected_student, selected_flag_teacher, selected_flag_student = \
+                    self.model(state, self.env.selected_node_list, self.env.solution, current_step,
+                            raw_data_capacity=self.env.raw_data_capacity)
+
+                # For the first step, set all flags to 1 for each of the k solutions
+                if current_step == 0:
+                    selected_flag_teacher = torch.ones(batch_size, dtype=torch.int)  # Shape: (B_V,)
+                    selected_flag_student = selected_flag_teacher
+
+                # Append the results for this beam to the containers
+                beam_loss_node.append(loss_node)
+                beam_selected_teacher.append(selected_teacher)
+                beam_selected_student.append(selected_student)
+                beam_selected_flag_teacher.append(selected_flag_teacher)
+                beam_selected_flag_student.append(selected_flag_student)
+
+            
+            # Stack the results for all beams (for each batch item)
+            beam_loss_node = torch.stack(beam_loss_node, dim=1)  # Shape: (batch_size, k, ...)
+            beam_selected_teacher = torch.stack(beam_selected_teacher, dim=1)  # Shape: (batch_size, k, solution_width)
+            beam_selected_student = torch.stack(beam_selected_student, dim=1)  # Shape: (batch_size, k, solution_width)
+            beam_selected_flag_teacher = torch.stack(beam_selected_flag_teacher, dim=1)  # Shape: (batch_size, k, solution_width)
+            beam_selected_flag_student = torch.stack(beam_selected_flag_student, dim=1)  # Shape: (batch_size, k, solution_width)
 
             # Loop over k solutions here for each batch instance
-            for i in range(k):
+            for beam_idx in range(k):
                 # Extract one solution (i-th solution in the batch)
-                selected_teacher_i = selected_teacher[:, i]
-                selected_student_i = selected_student[:, i]
-                selected_flag_teacher_i = selected_flag_teacher[:, i]
-                selected_flag_student_i = selected_flag_student[:, i]
+                selected_teacher_i = beam_selected_teacher[:, beam_idx]
+                selected_student_i = beam_selected_student[:, beam_idx]
+                selected_flag_teacher_i = beam_selected_flag_teacher[:, beam_idx]
+                selected_flag_student_i = beam_selected_flag_student[:, beam_idx]
 
-                # Call the step function for the i-th solution
+                # Call the step function for the i-th solution (beam_idx)
                 state, reward, reward_student, done = self.env.step(
                     selected_teacher_i, selected_student_i, selected_flag_teacher_i, selected_flag_student_i
                 )
-                
-        # Combine selected student nodes and their flags for all k solutions
-        all_selected_node_lists = self.env.selected_student_list.reshape(batch_size, -1, 1)
-        all_selected_flag_lists = self.env.selected_student_flag.reshape(batch_size, -1, 1)
-        
-        # Concatenate to get the full list of nodes and flags for all k solutions
-        all_best_select_node_list = torch.cat(
-            (all_selected_node_lists, all_selected_flag_lists), dim=2
-        )  # Shape: [batch_size, k, 2]
 
-            # Initialize variables to track the best solution and its travel distance
+                # Store the selected nodes and flags for this solution
+                all_selected_teacher.append(selected_teacher_i)
+                all_selected_student.append(selected_student_i)
+                all_selected_flag_teacher.append(selected_flag_teacher_i)
+                all_selected_flag_student.append(selected_flag_student_i)
+                
+            # Increment step counter
+            current_step += 1
+                    
+        # After the loop, we have k solutions for each batch, let's combine them
+        all_selected_teacher = torch.stack(all_selected_teacher, dim=1)  # Shape: (batch_size, k, solution_width)
+        all_selected_student = torch.stack(all_selected_student, dim=1)  # Shape: (batch_size, k, solution_width)
+        all_selected_flag_teacher = torch.stack(all_selected_flag_teacher, dim=1)  # Shape: (batch_size, k, solution_width)
+        all_selected_flag_student = torch.stack(all_selected_flag_student, dim=1)  # Shape: (batch_size, k, solution_width)
+
+        # Initialize variables to track the best solution and its travel distance
         best_solution_idx = None
         best_travel_distance = float('inf')  # Start with a very large number
-        
+
         # Loop through each solution (among k solutions)
-        for i in range(all_best_select_node_list.shape[1]):  # Loop over k solutions
-            best_select_node_list = all_best_select_node_list[:, i, :]  # Shape: [batch_size, 2]
+        for i in range(k):  # Loop over k solutions
+            best_select_node_list = all_selected_student[:, i, :]  # Shape: [batch_size, solution_width]
 
             # Calculate the travel distance for the current solution
-            print(best_select_node_list.shape, self.origin_problem.shape)
             current_travel_distance = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
-            
+
             # If the current solution is better (has a shorter distance), update the best solution
             if current_travel_distance < best_travel_distance:
                 best_travel_distance = current_travel_distance
                 best_solution_idx = i  # Track the index of the best solution
-        
-        
+
         # Now, we have the best solution among the k solutions
-        best_select_node_list = all_best_select_node_list[:, best_solution_idx, :]
+        best_select_node_list = all_selected_student[:, best_solution_idx, :]
 
         # Calculate the length of the best solution
         current_best_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
-        
+
         return best_select_node_list, current_best_length
         
     def _test_one_batch(self, episode, batch_size, clock=None, logger=None):
