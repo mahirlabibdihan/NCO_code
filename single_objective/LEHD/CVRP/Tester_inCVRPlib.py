@@ -1,7 +1,7 @@
 from logging import getLogger
 
 import torch
-
+import random
 from LEHD.CVRP.VRPModel import VRPModel as Model
 from LEHD.CVRP.VRPEnv_inCVRPlib import VRPEnv as Env
 from LEHD.utils.utils import *
@@ -326,13 +326,13 @@ class VRPTester():
                 state, reward, reward_student, done = \
                     self.env.step(selected_teacher, selected_student, selected_flag_teacher, selected_flag_student)
 
-            ahter_repair_sub_solution = torch.cat((self.env.selected_student_list.unsqueeze(2),
+            after_repair_sub_solution = torch.cat((self.env.selected_student_list.unsqueeze(2),
                                                     self.env.selected_student_flag.unsqueeze(2)), dim=2)
 
             after_reward = - reward_student
 
             after_repair_complete_solution = self.decide_whether_to_repair_solution(
-                    ahter_repair_sub_solution,
+                    after_repair_sub_solution,
                 before_reward, after_reward, first_node_index, length_of_subpath, double_solution)
 
             best_select_node_list = after_repair_complete_solution
@@ -350,7 +350,13 @@ class VRPTester():
         
         return current_best_length
 
-    
+    def generate_neighbor(solution):
+        # Example: Swap two nodes in a route
+        new_solution = solution.clone()
+        i, j = random.sample(range(len(solution)), 2)  # Select two random indices
+        new_solution[i], new_solution[j] = new_solution[j], new_solution[i]  # Swap nodes
+        return new_solution
+
     def iterative_solution_improvement_sa(self, episode, clock, name, batch_size, current_step, best_select_node_list):
         budget = self.env_params['RRC_budget']
 
@@ -368,66 +374,22 @@ class VRPTester():
             self.env.load_problems(episode, batch_size)
 
             # Randomly sample and modify the partial solution
-            best_select_node_list = self.env.vrp_whole_and_solution_subrandom_inverse(best_select_node_list)
+            # best_select_node_list = self.env.vrp_whole_and_solution_subrandom_inverse(best_select_node_list)
+            new_best_select_node_list  = self.generate_neighbor(best_select_node_list)
 
-            # Destroy and partially reconstruct the solution
-            partial_solution_length, first_node_index, length_of_subpath, double_solution = \
-                self.env.destroy_solution(self.env.problems, best_select_node_list)
-
-            # Store solution before repair
-            before_repair_sub_solution = self.env.solution
-            before_reward = partial_solution_length
-
-            # Reset environment and prepare for solution reconstruction
-            current_step = 0
-            reset_state, _, _ = self.env.reset(self.env_params['mode'])
-            state, reward, reward_student, done = self.env.pre_step()
-
-            # Solution reconstruction loop
-            while not done:
-                # For the first step, use initial solution nodes
-                if current_step == 0:
-                    selected_teacher = self.env.solution[:, 0, 0]
-                    selected_flag_teacher = self.env.solution[:, 0, 1]
-                    selected_student = selected_teacher
-                    selected_flag_student = selected_flag_teacher
-                else:
-                    # Run model to select nodes for reconstruction
-                    _, selected_teacher, selected_student, selected_flag_teacher, selected_flag_student = \
-                        self.model(state, self.env.selected_node_list, self.env.solution, current_step,
-                                raw_data_capacity=self.env.raw_data_capacity)
-
-                current_step += 1
-
-                # Take a step in the environment
-                state, reward, reward_student, done = \
-                    self.env.step(selected_teacher, selected_student, selected_flag_teacher, selected_flag_student)
-
-            # Prepare reconstructed solution
-            ahter_repair_sub_solution = torch.cat((self.env.selected_student_list.unsqueeze(2),
-                                                self.env.selected_student_flag.unsqueeze(2)), dim=2)
-
-            after_reward = - reward_student
-
-            # Decide whether to keep the repaired solution using Simulated Annealing
-            after_repair_complete_solution = self.decide_whether_to_repair_solution_sa(
-                ahter_repair_sub_solution,
-                before_reward, after_reward, first_node_index, length_of_subpath, double_solution, temperature
-            )
-
-
-            new_length = self.env._get_travel_distance_2(self.origin_problem, after_repair_complete_solution)
-
-            # Simulated Annealing Acceptance Criteria
+            new_length = self.env._get_travel_distance_2(self.origin_problem, new_best_select_node_list)
             current_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
             delta_length = new_length.mean().item() - current_length.mean().item()
-
+            
+            # Simulated Annealing Acceptance Criteria
             if delta_length < 0 or torch.rand(1).item() < torch.exp(torch.tensor(-delta_length / temperature)):
-                # Accept the new solution
-                best_select_node_list = after_repair_complete_solution
+            # Accept the new solution
+                best_select_node_list = new_best_select_node_list
+
 
             # Cool down the temperature
             temperature = max(T_min, temperature * alpha)
+
 
             # Get elapsed time
             escape_time, _ = clock.get_est_string(1, 1)
@@ -482,7 +444,7 @@ class VRPTester():
             ####################################################
 
             # Iterative solution improvement
-            current_best_length = self.iterative_solution_improvement(
+            current_best_length = self.iterative_solution_improvement_sa(
                 episode, clock, name,  batch_size, current_step, best_select_node_list
             )
             # current_best_length = self.iterative_solution_improvement_sa(
