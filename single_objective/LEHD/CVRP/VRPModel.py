@@ -231,7 +231,11 @@ class CVRP_Decoder(nn.Module):
         new_list[index_1, index_2] = -2
         unselect_list = new_list[torch.gt(new_list, -1)]
         
-        # Check if reshaping is valid
+        # Print the shape and verify the number of elements
+        print(f"Expected unselect_list size: {B_V * new_list_len}")
+        print(f"Actual unselect_list size: {unselect_list.numel()}")
+        
+        # Handle the mismatch in unselect_list size
         if unselect_list.numel() != B_V * new_list_len:
             raise ValueError(f"Shape mismatch: unselect_list has {unselect_list.numel()} elements, expected {B_V * new_list_len}.")
         
@@ -249,6 +253,7 @@ class CVRP_Decoder(nn.Module):
         new_data_ = new_data[index_1_, index_2_, index_3_].view(B_V, new_data_len, emb_dim)
         
         return new_data_
+
 
     def _get_encoding(self,encoded_nodes, node_index_to_pick):
 
