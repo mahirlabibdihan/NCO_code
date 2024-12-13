@@ -223,7 +223,7 @@ class VRPTester():
             B_V = batch_size * 1
             
             # Initialize the beam list (list of candidates)
-            beam_size = 5  # You can adjust this value for your case
+            beam_size = 10  # You can adjust this value for your case
             beam_list = []
 
             # Add the initial state to the beam list
@@ -232,8 +232,8 @@ class VRPTester():
             while not done:
                 new_beam_list = []
                 
-                for item in beam_list:
-                    print(f"Step {current_step}, Beam item structure: {item}")
+                # for item in beam_list:
+                #     print(f"Step {current_step}, Beam item structure: {item}")
 
 
                 for beam_state, beam_solution, cumulative_score in beam_list:
