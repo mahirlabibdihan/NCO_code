@@ -401,6 +401,8 @@ class VRPTester():
                         # Swap the two customers
                         neighbor_solution[b, customer_i, 0], neighbor_solution[b, customer_j, 0] = \
                             neighbor_solution[b, customer_j, 0], neighbor_solution[b, customer_i, 0]  # Swap the node values
+                            
+                        print(neighbor_solution[b, customer_i, 0], neighbor_solution[b, customer_j, 0])
                         break
 
         return neighbor_solution
