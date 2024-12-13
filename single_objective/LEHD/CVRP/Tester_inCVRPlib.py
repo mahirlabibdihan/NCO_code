@@ -405,6 +405,7 @@ class VRPTester():
 
         for b in range(batch_size):
             current_solution = neighbor_solution[b]
+            print(current_solution)
             for route in self.get_routes(current_solution):
                 route_demand = 0
                 for node in route:
@@ -414,6 +415,7 @@ class VRPTester():
 
                 # If the demand exceeds the vehicle's capacity, the solution is invalid
                 if route_demand > route_capacity:
+                    print(route)
                     print(route_demand, route_capacity)
                     return False
         
