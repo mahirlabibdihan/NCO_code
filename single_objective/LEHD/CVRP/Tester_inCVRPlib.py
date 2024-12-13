@@ -367,7 +367,7 @@ class VRPTester():
             routes.append(current_route)
             
         return routes
-                
+                    
     def generate_neighbor(self, solution):
         batch_size = solution.shape[0]
         problem_size = solution.shape[1]
@@ -386,13 +386,19 @@ class VRPTester():
             if routes:
                 while True:
                     selected_route = random.choice(routes)  # Randomly choose a route
+                    
                     # Ensure there are at least 2 customers in the route to swap
                     if len(selected_route) > 1:
                         # Step 3: Pick two random customers from the selected route
-                        i, j = random.sample(selected_route, 2)  # Pick two random indices from the route
+                        i, j = random.sample(range(len(selected_route)), 2)  # Pick two random indices from the route
+
+                        # Step 4: Get the actual indices of the customers in the full solution
+                        customer_i = selected_route[i]
+                        customer_j = selected_route[j]
+
                         # Swap the two customers
-                        neighbor_solution[b, i, 0], neighbor_solution[b, j, 0] = \
-                            neighbor_solution[b, j, 0], neighbor_solution[b, i, 0]  # Swap the node values
+                        neighbor_solution[b, customer_i, 0], neighbor_solution[b, customer_j, 0] = \
+                            neighbor_solution[b, customer_j, 0], neighbor_solution[b, customer_i, 0]  # Swap the node values
                         break
 
         return neighbor_solution
