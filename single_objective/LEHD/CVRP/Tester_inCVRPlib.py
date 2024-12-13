@@ -310,7 +310,7 @@ class VRPTester():
             current_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
             delta_length = new_length.mean().item() - current_length.mean().item()
 
-            if delta_length < 0 or torch.rand(1).item() < torch.exp(-delta_length / temperature):
+            if delta_length < 0 or torch.rand(1).item() < torch.exp(torch.tensor(-delta_length / temperature)):
                 # Accept the new solution
                 best_select_node_list = after_repair_complete_solution
 
