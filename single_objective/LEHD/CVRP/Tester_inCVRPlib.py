@@ -411,7 +411,7 @@ class VRPTester():
 
         for b in range(batch_size):
             current_solution = neighbor_solution[b]
-            print(current_solution)
+            # print(current_solution)
             for route in self.get_routes(current_solution):
                 route_demand = 0
                 for node in route:
