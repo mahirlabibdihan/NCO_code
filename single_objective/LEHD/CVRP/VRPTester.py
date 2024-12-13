@@ -270,7 +270,7 @@ class VRPTester():
             best_select_node_list = all_best_select_node_list[:, i, :]  # Shape: [batch_size, 2]
 
             # Calculate the travel distance for the current solution
-            print(best_select_node_list.shape(), self.origin_problem.shape())
+            print(best_select_node_list.shape, self.origin_problem.shape)
             current_travel_distance = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
             
             # If the current solution is better (has a shorter distance), update the best solution
