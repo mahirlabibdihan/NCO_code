@@ -416,7 +416,7 @@ class VRPTester():
                 # If the demand exceeds the vehicle's capacity, the solution is invalid
                 if route_demand > route_capacity:
                     for customer in route:
-                        print(current_solution[customer, 0, 0], end=' ')
+                        print(current_solution[customer, 0], end=' ')
                     print(route_demand, route_capacity)
                     return False
         
