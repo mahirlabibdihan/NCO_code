@@ -224,17 +224,30 @@ class CVRP_Decoder(nn.Module):
         list = selected_node_list
         new_list = torch.arange(prob_size)[None, :].repeat(B_V, 1)
         new_list_len = prob_size - list.shape[1]  # shape: [B, V-current_step]
+        
         index_2 = list.type(torch.long)
         index_1 = torch.arange(B_V, dtype=torch.long)[:, None].expand(B_V, index_2.shape[1])
+        
         new_list[index_1, index_2] = -2
-        unselect_list = new_list[torch.gt(new_list, -1)].view(B_V, new_list_len)
+        unselect_list = new_list[torch.gt(new_list, -1)]
+        
+        # Check if reshaping is valid
+        if unselect_list.numel() != B_V * new_list_len:
+            raise ValueError(f"Shape mismatch: unselect_list has {unselect_list.numel()} elements, expected {B_V * new_list_len}.")
+        
+        unselect_list = unselect_list.view(B_V, new_list_len)
+        
         new_data = data
         emb_dim = data.shape[-1]
         new_data_len = new_list_len
+        
+        # Ensure proper indexing for the new data
         index_2_ = unselect_list.repeat_interleave(repeats=emb_dim, dim=1)
         index_1_ = torch.arange(B_V, dtype=torch.long)[:, None].expand(B_V, index_2_.shape[1])
         index_3_ = torch.arange(emb_dim)[None, :].repeat(repeats=(B_V, new_data_len))
+        
         new_data_ = new_data[index_1_, index_2_, index_3_].view(B_V, new_data_len, emb_dim)
+        
         return new_data_
 
     def _get_encoding(self,encoded_nodes, node_index_to_pick):
