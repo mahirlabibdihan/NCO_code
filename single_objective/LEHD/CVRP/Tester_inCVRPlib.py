@@ -232,8 +232,9 @@ class VRPTester():
             while not done:
                 new_beam_list = []
                 
-                for i, (sequence, score) in enumerate(beam_list):
-                    print(f"Step {current_step}, Beam {i}: Sequence = {sequence}, Score = {score}")
+                for item in beam_list:
+                    print(f"Step {current_step}, Beam item structure: {item}")
+
 
                 for beam_state, beam_solution, cumulative_score in beam_list:
                     # Run the model to select nodes and get selection probabilities
