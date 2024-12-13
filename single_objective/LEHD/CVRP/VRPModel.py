@@ -122,6 +122,7 @@ class VRPModel(nn.Module):
 
             p = 0.9  # Set your desired probability threshold (usually between 0.8 and 0.95)
             selected_node_student = nucleus_sampling(probs, p)
+            print(selected_node_student)
     
             is_via_depot_student = selected_node_student >= split_line  # 节点index大于 customer_num的是通过depot的
             not_via_depot_student = selected_node_student < split_line
