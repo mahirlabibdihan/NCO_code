@@ -53,30 +53,83 @@ class VRPModel(nn.Module):
 
             loss_node = -prob_select_node.type(torch.float64).log().mean()
 
+        # if self.mode == 'test':
+
+        #     remaining_capacity = state.problems[:, 1, 3]
+        #     # print(state.problems.shape)
+        #     if current_step <= 1:
+        #         self.encoded_nodes = self.encoder(state.problems,self.capacity)
+
+        #     probs = self.decoder(self.encoded_nodes, selected_node_list,self.capacity, remaining_capacity)
+        #     selected_node_student = probs.argmax(dim=1)  # shape: B -- Greedy Decoding
+            
+        #     is_via_depot_student = selected_node_student >= split_line  # 节点index大于 customer_num的是通过depot的
+        #     not_via_depot_student = selected_node_student < split_line
+        #     # print(selected_node_student)
+        #     selected_flag_student = torch.zeros(batch_size, dtype=torch.int)
+        #     selected_flag_student[is_via_depot_student] = 1
+        #     selected_node_student[is_via_depot_student] = selected_node_student[is_via_depot_student] - split_line + 1
+        #     selected_flag_student[not_via_depot_student] = 0
+        #     selected_node_student[not_via_depot_student] = selected_node_student[not_via_depot_student] + 1
+
+        #     selected_node_teacher = selected_node_student
+        #     selected_flag_teacher = selected_flag_student
+
+        #     loss_node = torch.tensor(0)
+        
         if self.mode == 'test':
-
+            beam_size = 5  # Choose a beam size
             remaining_capacity = state.problems[:, 1, 3]
-            # print(state.problems.shape)
+
             if current_step <= 1:
-                self.encoded_nodes = self.encoder(state.problems,self.capacity)
+                self.encoded_nodes = self.encoder(state.problems, self.capacity)
 
+            # Initialize beams
+            beams = [[([], 0.0)] for _ in range(batch_size)]  # Each batch has a list of beams, each beam is (sequence, log-prob)
 
-            probs = self.decoder(self.encoded_nodes, selected_node_list,self.capacity, remaining_capacity)
+            for step in range(problem_size):
+                new_beams = []
+                for b in range(batch_size):
+                    candidates = []
+                    for seq, seq_log_prob in beams[b]:
+                        probs = self.decoder(
+                            self.encoded_nodes[b:b+1],
+                            torch.tensor(seq).unsqueeze(0).to(probs.device) if seq else selected_node_list[b:b+1],
+                            self.capacity,
+                            remaining_capacity[b:b+1]
+                        )
 
-            selected_node_student = probs.argmax(dim=1)  # shape: B
-            is_via_depot_student = selected_node_student >= split_line  # 节点index大于 customer_num的是通过depot的
+                        probs = F.log_softmax(probs, dim=1)  # Convert to log probabilities
+
+                        for i in range(problem_size):  # Iterate over all possible nodes
+                            new_seq = seq + [i]
+                            new_log_prob = seq_log_prob + probs[0, i].item()
+                            candidates.append((new_seq, new_log_prob))
+
+                    # Keep the top-k candidates
+                    candidates = sorted(candidates, key=lambda x: x[1], reverse=True)[:beam_size]
+                    new_beams.append(candidates)
+
+                beams = new_beams  # Update beams
+
+            # Select the best sequence for each batch
+            final_sequences = [max(b, key=lambda x: x[1])[0] for b in beams]
+
+            # Convert final_sequences into `selected_node_student` and `selected_flag_student`
+            selected_node_student = torch.tensor([seq[-1] for seq in final_sequences]).to(probs.device)
+            is_via_depot_student = selected_node_student >= split_line
             not_via_depot_student = selected_node_student < split_line
-            # print(selected_node_student)
-            selected_flag_student = torch.zeros(batch_size, dtype=torch.int)
+
+            selected_flag_student = torch.zeros(batch_size, dtype=torch.int, device=probs.device)
             selected_flag_student[is_via_depot_student] = 1
-            selected_node_student[is_via_depot_student] = selected_node_student[is_via_depot_student] - split_line + 1
+            selected_node_student[is_via_depot_student] -= split_line - 1
             selected_flag_student[not_via_depot_student] = 0
-            selected_node_student[not_via_depot_student] = selected_node_student[not_via_depot_student] + 1
+            selected_node_student[not_via_depot_student] += 1
 
             selected_node_teacher = selected_node_student
             selected_flag_teacher = selected_flag_student
 
-            loss_node = torch.tensor(0)
+            loss_node = torch.tensor(0, device=probs.device)
 
         return loss_node,selected_node_teacher,  selected_node_student,selected_flag_teacher,selected_flag_student
 
@@ -138,7 +191,7 @@ class EncoderLayer(nn.Module):
 
         multi_head_out = self.multi_head_combine(out_concat)  # shape: (B, n, embedding_dim)
 
-        out1 = input1 +   multi_head_out
+        out1 = input1 + multi_head_out
         out2 = self.feedForward(out1)
 
         out3 = out1 + out2
@@ -163,35 +216,20 @@ class CVRP_Decoder(nn.Module):
         self.Linear_final = nn.Linear(embedding_dim, 2, bias=True)
 
     def _get_new_data(self, data, selected_node_list, prob_size, B_V):
-
         list = selected_node_list
-
         new_list = torch.arange(prob_size)[None, :].repeat(B_V, 1)
-
         new_list_len = prob_size - list.shape[1]  # shape: [B, V-current_step]
-
         index_2 = list.type(torch.long)
-
         index_1 = torch.arange(B_V, dtype=torch.long)[:, None].expand(B_V, index_2.shape[1])
-
         new_list[index_1, index_2] = -2
-
         unselect_list = new_list[torch.gt(new_list, -1)].view(B_V, new_list_len)
-
         new_data = data
-
         emb_dim = data.shape[-1]
-
         new_data_len = new_list_len
-
         index_2_ = unselect_list.repeat_interleave(repeats=emb_dim, dim=1)
-
         index_1_ = torch.arange(B_V, dtype=torch.long)[:, None].expand(B_V, index_2_.shape[1])
-
         index_3_ = torch.arange(emb_dim)[None, :].repeat(repeats=(B_V, new_data_len))
-
         new_data_ = new_data[index_1_, index_2_, index_3_].view(B_V, new_data_len, emb_dim)
-
         return new_data_
 
     def _get_encoding(self,encoded_nodes, node_index_to_pick):
@@ -293,58 +331,37 @@ class DecoderLayer(nn.Module):
         self.feedForward = Feed_Forward_Module(**model_params)
 
     def forward(self, input1):
-
         head_num = self.model_params['head_num']
-
         q = reshape_by_heads(self.Wq(input1), head_num=head_num)
         k = reshape_by_heads(self.Wk(input1), head_num=head_num)
         v = reshape_by_heads(self.Wv(input1), head_num=head_num)
-
         out_concat = multi_head_attention(q, k, v)
-
         multi_head_out = self.multi_head_combine(out_concat)
-
         out1 = input1 + multi_head_out
         out2 = self.feedForward(out1)
         out3 = out1 + out2
         return out3
 
-
-
 def reshape_by_heads(qkv, head_num):
-
     batch_s = qkv.size(0)
-
     n = qkv.size(1)
-
     q_reshaped = qkv.reshape(batch_s, n, head_num, -1)
-
     q_transposed = q_reshaped.transpose(1, 2)
-
     return q_transposed
 
-
 def multi_head_attention(q, k, v):
-
     batch_s = q.size(0)
     head_num = q.size(1)
     n = q.size(2)
     key_dim = q.size(3)
 
     score = torch.matmul(q, k.transpose(2, 3))  # shape: (B, head_num, n, n)
-
     score_scaled = score / torch.sqrt(torch.tensor(key_dim, dtype=torch.float))
-
     weights = nn.Softmax(dim=3)(score_scaled)  # shape: (B, head_num, n, n)
-
     out = torch.matmul(weights, v)  # shape: (B, head_num, n, key_dim)
-
     out_transposed = out.transpose(1, 2)  # shape: (B, n, head_num, key_dim)
-
     out_concat = out_transposed.reshape(batch_s, n, head_num * key_dim)  # shape: (B, n, head_num*key_dim)
-
     return out_concat
-
 
 class Feed_Forward_Module(nn.Module):
     def __init__(self, **model_params):
@@ -356,6 +373,4 @@ class Feed_Forward_Module(nn.Module):
         self.W2 = nn.Linear(ff_hidden_dim, embedding_dim)
 
     def forward(self, input1):
-
-
         return self.W2(F.relu(self.W1(input1)))
