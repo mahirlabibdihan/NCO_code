@@ -350,7 +350,7 @@ class VRPTester():
         
         return current_best_length
 
-    def generate_neighbor(solution):
+    def generate_neighbor(self, solution):
         # Example: Swap two nodes in a route
         new_solution = solution.clone()
         i, j = random.sample(range(len(solution)), 2)  # Select two random indices
