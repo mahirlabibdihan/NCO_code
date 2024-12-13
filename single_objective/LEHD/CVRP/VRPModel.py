@@ -113,16 +113,16 @@ class VRPModel(nn.Module):
             if current_step <= 1:
                 self.encoded_nodes = self.encoder(state.problems, self.capacity)
             
-            probs = self.decoder(self.encoded_nodes, selected_node_list,self.capacity, remaining_capacity)
+            probs = self.decoder(self.encoded_nodes, selected_node_list, self.capacity, remaining_capacity)
             # selected_node_student = probs.argmax(dim=1)  # shape: B -- Greedy Decoding
             
             # Replace Greedy Decoding with Top-K Sampling
             # k = 1  # Set your desired value for k
             # selected_node_student = top_k_sampling(probs, k)  # Top-K Sampling instead of argmax
 
-            p = 0.9  # Set your desired probability threshold (usually between 0.8 and 0.95)
+            p = 0.8  # Set your desired probability threshold (usually between 0.8 and 0.95)
             selected_node_student = nucleus_sampling(probs, p)
-            print(selected_node_student)
+            # print(selected_node_student)
     
             is_via_depot_student = selected_node_student >= split_line  # 节点index大于 customer_num的是通过depot的
             not_via_depot_student = selected_node_student < split_line
