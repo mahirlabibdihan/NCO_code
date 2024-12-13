@@ -313,7 +313,10 @@ class CVRP_Decoder(nn.Module):
             # Handle mismatch by filling the remaining elements with some default value (e.g., zero)
             # You could also choose another default behavior depending on your needs.
             missing_elements = B_V * new_list_len - unselect_list.numel()
-            unselect_list = torch.cat([unselect_list, torch.zeros(missing_elements, dtype=torch.long)])
+            if missing_elements > 0:
+                unselect_list = torch.cat([unselect_list, torch.zeros(missing_elements, dtype=torch.long)])
+            elif missing_elements < 0:
+                unselect_list = unselect_list[:B_V * new_list_len]  # Trim extra elements
         
         unselect_list = unselect_list.view(B_V, new_list_len)
         
