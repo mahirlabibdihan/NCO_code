@@ -327,7 +327,7 @@ class VRPTester():
             # Create a problem name based on solution shape
             name = 'vrp'+str(self.env.solution.shape[1])
 
-            best_select_node_list, current_best_length = self.construct_initial_solution(batch_size, current_step, done)
+            best_select_node_list, current_best_length = self.construct_initial_solution(batch_size, current_step)
             print('Get first complete solution!')
             
             # Get elapsed time
