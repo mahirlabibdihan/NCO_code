@@ -413,7 +413,12 @@ class CVRP_Decoder(nn.Module):
         index_2_ =torch.cat( ((selected_node_list_).type(torch.long), (problem_size)+ (selected_node_list_).type(torch.long) ),dim=-1) # shape: [B*V, n]
         new_props[index_1_, index_2_,] = -2
         index = torch.gt(new_props, -1).view(batch_size_V, -1)
-        new_props[index] = props.ravel()
+        
+        # Value Error
+        padding_size = new_props[index].shape[0] - props.ravel().shape[0]
+        padded_props = torch.cat([props.ravel(), torch.zeros(padding_size)])  # Pad with zeros
+        new_props[index] = padded_props
+        # new_props[index] = props.ravel()
 
         return new_props
 
