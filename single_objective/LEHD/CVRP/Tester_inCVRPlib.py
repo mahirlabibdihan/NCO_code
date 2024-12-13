@@ -155,7 +155,7 @@ class VRPTester():
 
         return score_AM.avg, score_student_AM.avg, gap_
 
-        def decide_whether_to_repair_solution(self, after_repair_sub_solution, before_reward, after_reward, 
+    def decide_whether_to_repair_solution(self, after_repair_sub_solution, before_reward, after_reward, 
                                         first_node_index, length_of_subpath, double_solution, temperature):
         """
         Decide whether to replace the current solution with the repaired solution, 
