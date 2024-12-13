@@ -79,7 +79,7 @@ class VRPModel(nn.Module):
             # selected_node_student = probs.argmax(dim=1)  # shape: B -- Greedy Decoding
             
             # Replace Greedy Decoding with Top-K Sampling
-            k = 5  # Set your desired value for k
+            k = 2  # Set your desired value for k
             selected_node_student = top_k_sampling(probs, k)  # Top-K Sampling instead of argmax
         
             is_via_depot_student = selected_node_student >= split_line  # 节点index大于 customer_num的是通过depot的
