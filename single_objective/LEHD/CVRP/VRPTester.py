@@ -218,7 +218,9 @@ class VRPTester():
         # Return the complete solution after repair
         return after_repair_complete_solution
 
-    def construct_initial_solution(self, batch_size, current_step, done, k = 5):
+    def construct_initial_solution(self, batch_size, current_step, k = 5):
+        # Prepare initial state and get first step information
+        state, reward, reward_student, done = self.env.pre_step()
         # Prepare batch volume
         B_V = batch_size * 1
         
@@ -314,8 +316,7 @@ class VRPTester():
             # Initialize step counter
             current_step = 0
 
-            # Prepare initial state and get first step information
-            state, reward, reward_student, done = self.env.pre_step()
+            
 
             # Store the original problem for comparison
             self.origin_problem = self.env.problems.clone().detach()
