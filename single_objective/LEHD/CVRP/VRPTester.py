@@ -265,11 +265,12 @@ class VRPTester():
         best_solution_idx = None
         best_travel_distance = float('inf')  # Start with a very large number
         
-            # Loop through each solution (among k solutions)
+        # Loop through each solution (among k solutions)
         for i in range(all_best_select_node_list.shape[1]):  # Loop over k solutions
             best_select_node_list = all_best_select_node_list[:, i, :]  # Shape: [batch_size, 2]
 
             # Calculate the travel distance for the current solution
+            print(best_select_node_list.shape(), self.origin_problem.shape())
             current_travel_distance = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
             
             # If the current solution is better (has a shorter distance), update the best solution
@@ -277,7 +278,7 @@ class VRPTester():
                 best_travel_distance = current_travel_distance
                 best_solution_idx = i  # Track the index of the best solution
         
-        print(best_select_node_list.shape(), self.origin_problem.shape())
+        
         # Now, we have the best solution among the k solutions
         best_select_node_list = all_best_select_node_list[:, best_solution_idx, :]
 
