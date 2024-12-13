@@ -3,6 +3,28 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+def top_k_sampling(logits, k):
+    """
+    Perform Top-K Sampling.
+    Args:
+        logits (torch.Tensor): Logits from the model, shape (batch_size, vocab_size).
+        k (int): Number of top elements to consider.
+    Returns:
+        selected_indices (torch.Tensor): Selected token indices, shape (batch_size,).
+    """
+    # Get top-k logits and their indices
+    top_k_logits, top_k_indices = torch.topk(logits, k, dim=-1)
+
+    # Apply softmax to the top-k logits
+    top_k_probs = F.softmax(top_k_logits, dim=-1)
+
+    # Sample from the top-k probabilities
+    selected_indices = torch.multinomial(top_k_probs, num_samples=1).squeeze(-1)
+
+    # Map the selected indices back to the original vocabulary indices
+    final_indices = top_k_indices.gather(-1, selected_indices.unsqueeze(-1)).squeeze(-1)
+    return final_indices
+
 class VRPModel(nn.Module):
 
     def __init__(self, **model_params):
@@ -54,7 +76,11 @@ class VRPModel(nn.Module):
                 self.encoded_nodes = self.encoder(state.problems, self.capacity)
             
             probs = self.decoder(self.encoded_nodes, selected_node_list,self.capacity, remaining_capacity)
-            selected_node_student = probs.argmax(dim=1)  # shape: B -- Greedy Decoding
+            # selected_node_student = probs.argmax(dim=1)  # shape: B -- Greedy Decoding
+            
+            # Replace Greedy Decoding with Top-K Sampling
+            k = 5  # Set your desired value for k
+            selected_node_student = top_k_sampling(probs, k)  # Top-K Sampling instead of argmax
         
             is_via_depot_student = selected_node_student >= split_line  # 节点index大于 customer_num的是通过depot的
             not_via_depot_student = selected_node_student < split_line

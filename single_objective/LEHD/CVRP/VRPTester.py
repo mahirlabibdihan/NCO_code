@@ -264,57 +264,31 @@ class VRPTester():
 
             # Prepare batch volume
             B_V = batch_size * 1
-            
-            # Initialize the beam list (list of candidates)
-            beam_size = 5  # You can adjust this value for your case
-            beam_list = []
-
-            # Add the initial state to the beam list
-            beam_list.append((state, self.env.solution, 0))  # (state, solution, cumulative score)
 
             # Main solving loop
             while not done:
-                new_beam_list = []
-                
-                for beam_state, beam_solution, cumulative_score in beam_list:
-                    # Run the model to select nodes and get selection probabilities
-                    loss_node, selected_teacher, selected_student, selected_flag_teacher, selected_flag_student = \
-                        self.model(state, self.env.selected_node_list, self.env.solution, current_step,
-                                raw_data_capacity=self.env.raw_data_capacity)
+                # Run the model to select nodes and get selection probabilities
+                loss_node, selected_teacher, selected_student, selected_flag_teacher, selected_flag_student = \
+                    self.model(state, self.env.selected_node_list, self.env.solution, current_step,
+                            raw_data_capacity=self.env.raw_data_capacity)
 
-                    # For the first step, set all flags to 1
-                    if current_step == 0:
-                        selected_flag_teacher = torch.ones(B_V, dtype=torch.int)
-                        selected_flag_student = selected_flag_teacher
+                # For the first step, set all flags to 1
+                if current_step == 0:
+                    selected_flag_teacher = torch.ones(B_V, dtype=torch.int)
+                    selected_flag_student = selected_flag_teacher
 
-                    # Increment step counter
-                    current_step += 1
+                # Increment step counter
+                current_step += 1
 
-                    # Take a step in the environment with selected nodes
-                    new_state, reward, reward_student, done = \
-                        self.env.step(selected_teacher, selected_student, selected_flag_teacher, selected_flag_student)
-                        
-                    # Calculate the new cumulative score (you can use a reward function or log probability here)
-                    new_cumulative_score = cumulative_score + reward_student.item()
-                    
-                    # Update the solution with the new state (as the solution will change after each step)
-                    new_solution = self.env.solution  # assuming solution is updated in the environment
-                
-                    # Add the new state, solution, and cumulative score to the list of new candidates
-                    new_beam_list.append((new_state, new_solution, new_cumulative_score))
-                    
-                # Sort the new beam list by cumulative score and keep the top-k candidates
-                beam_list = sorted(new_beam_list, key=lambda x: x[2], reverse=True)[:beam_size]
-                
-                if done:
-                    break
+                # Take a step in the environment with selected nodes
+                state, reward, reward_student, done = \
+                    self.env.step(selected_teacher, selected_student, selected_flag_teacher, selected_flag_student)
 
             print('Get first complete solution!')
 
             # Combine selected student nodes and their flags
             best_select_node_list = torch.cat((self.env.selected_student_list.reshape(batch_size, -1, 1),
                                             self.env.selected_student_flag.reshape(batch_size, -1, 1)), dim=2)
-            
 
             # Calculate the length of the current best solution
             current_best_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
