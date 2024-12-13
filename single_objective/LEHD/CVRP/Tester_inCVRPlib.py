@@ -351,8 +351,15 @@ class VRPTester():
         return current_best_length
 
     def generate_neighbor(self, solution):
+        # solution: [batch_size, problem_size, 2]
+        # The last 2 dimensions represent the selected node and the selected flag
+        
+        print(solution)
+        
+        raise ValueError("Hi")
         batch_size = solution.shape[0]
         problem_size = solution.shape[1]
+        
 
         # Clone the solution to avoid modifying the original
         neighbor_solution = solution.clone()
