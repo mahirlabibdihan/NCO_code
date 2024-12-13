@@ -53,43 +53,43 @@ class VRPModel(nn.Module):
             if current_step <= 1:
                 self.encoded_nodes = self.encoder(state.problems, self.capacity)
             
-            #     probs = self.decoder(self.encoded_nodes, selected_node_list,self.capacity, remaining_capacity)
-            #     selected_node_student = probs.argmax(dim=1)  # shape: B -- Greedy Decoding
+            probs = self.decoder(self.encoded_nodes, selected_node_list,self.capacity, remaining_capacity)
+            selected_node_student = probs.argmax(dim=1)  # shape: B -- Greedy Decoding
         
-            beam_size = 5  # Choose a beam size
-            # Initialize beams
-            beams = [[([], 0.0)] for _ in range(batch_size)]  # Each batch has a list of beams, each beam is (sequence, log-prob)
+            # beam_size = 5  # Choose a beam size
+            # # Initialize beams
+            # beams = [[([], 0.0)] for _ in range(batch_size)]  # Each batch has a list of beams, each beam is (sequence, log-prob)
 
-            for step in range(problem_size):
-                new_beams = []
-                for b in range(batch_size):
-                    candidates = []
-                    for seq, seq_log_prob in beams[b]:
-                        probs = self.decoder(
-                            self.encoded_nodes[b:b+1],  # No need to loop, process the whole batch at once
-                            torch.tensor(seq).unsqueeze(0).to(probs.device) if seq else selected_node_list[b:b+1],
-                            self.capacity,
-                            remaining_capacity[b:b+1]
-                        )
+            # for step in range(problem_size):
+            #     new_beams = []
+            #     for b in range(batch_size):
+            #         candidates = []
+            #         for seq, seq_log_prob in beams[b]:
+            #             probs = self.decoder(
+            #                 self.encoded_nodes[b:b+1],  # No need to loop, process the whole batch at once
+            #                 torch.tensor(seq).unsqueeze(0).to(probs.device) if seq else selected_node_list[b:b+1],
+            #                 self.capacity,
+            #                 remaining_capacity[b:b+1]
+            #             )
 
-                        probs = F.log_softmax(probs, dim=1)  # Convert to log probabilities
+            #             probs = F.log_softmax(probs, dim=1)  # Convert to log probabilities
 
-                        for i in range(problem_size):  # Iterate over all possible nodes
-                            new_seq = seq + [i]
-                            new_log_prob = seq_log_prob + probs[0, i].item()
-                            candidates.append((new_seq, new_log_prob))
+            #             for i in range(problem_size):  # Iterate over all possible nodes
+            #                 new_seq = seq + [i]
+            #                 new_log_prob = seq_log_prob + probs[0, i].item()
+            #                 candidates.append((new_seq, new_log_prob))
 
-                    # Keep the top-k candidates for each beam in the batch
-                    candidates = sorted(candidates, key=lambda x: x[1], reverse=True)[:beam_size]
-                    new_beams.append(candidates)
+            #         # Keep the top-k candidates for each beam in the batch
+            #         candidates = sorted(candidates, key=lambda x: x[1], reverse=True)[:beam_size]
+            #         new_beams.append(candidates)
 
-                beams = new_beams  # Update beams
+            #     beams = new_beams  # Update beams
 
-            # Select the best sequence for each batch
-            final_sequences = [max(b, key=lambda x: x[1])[0] for b in beams]
+            # # Select the best sequence for each batch
+            # final_sequences = [max(b, key=lambda x: x[1])[0] for b in beams]
 
-            # Convert final_sequences into `selected_node_student` and `selected_flag_student`
-            selected_node_student = torch.tensor([seq[-1] for seq in final_sequences]).to(probs.device)
+            # # Convert final_sequences into `selected_node_student` and `selected_flag_student`
+            # selected_node_student = torch.tensor([seq[-1] for seq in final_sequences]).to(probs.device)
             
             
             is_via_depot_student = selected_node_student >= split_line
