@@ -228,6 +228,9 @@ class CVRP_Decoder(nn.Module):
         index_2 = list.type(torch.long)
         index_1 = torch.arange(B_V, dtype=torch.long)[:, None].expand(B_V, index_2.shape[1])
         
+        print("index_1:", index_1)
+        print("index_2:", index_2)
+
         new_list[index_1, index_2] = -2
         unselect_list = new_list[torch.gt(new_list, -1)]
         
