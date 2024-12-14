@@ -251,10 +251,6 @@ class VRPTester():
         random_values = torch.rand(before_reward.size())  # Generate a tensor of random values of size k
         if_repair = (before_reward > after_reward) | (random_values < acceptance_probability)
                 
-        if before_reward > after_reward:
-            print("Accept")
-        elif if_repair:
-            print("Accept with prob")
 
         # Update the double solution if repair is needed
         need_to_repari_double_solution = double_solution[if_repair]
