@@ -250,7 +250,7 @@ class VRPTester():
         # Determine if repair is needed (always accept better solutions or probabilistically accept worse ones)
         random_values = torch.rand(before_reward.size())  # Generate a tensor of random values of size k
         if_repair = (before_reward > after_reward) | (random_values < acceptance_probability)
-                
+        
 
         # Update the double solution if repair is needed
         need_to_repari_double_solution = double_solution[if_repair]
@@ -556,16 +556,10 @@ class VRPTester():
             # Get elapsed time
             escape_time, _ = clock.get_est_string(1, 1)
 
-            # Log solution improvement details
             self.logger.info(
-                "RRC step{}, name:{}, gap:{:6f} %, Elapsed[{}], stu_l:{:5f} , opt_l:{:5f}".format(
-                        bbbb, name, ((current_best_length.mean() - self.optimal_length.mean()) / self.optimal_length.mean()).item() * 100,
-                    escape_time,current_best_length.mean().item(), self.optimal_length.mean().item()))
-            
-            self.logger.info(
-                "RRC step{}, name:{}, gap:{:6f} %, Elapsed[{}], stu_l:{:5f} , opt_l:{:5f}, Temp:{:5f}".format(
-                    bbbb, name, ((best_solution_length - self.optimal_length.mean()) / self.optimal_length.mean()).item() * 100,
-                    escape_time, best_solution_length.item(), self.optimal_length.mean().item(), temperature))
+                "RRC step{}, name:{}, best_gap:{:6f} %, gap:{:6f} %, Elapsed[{}], stu_l:{:5f} , opt_l:{:5f}, Temp:{:5f}".format(
+                    bbbb, name, ((best_solution_length - self.optimal_length.mean()) / self.optimal_length.mean()).item() * 100,  ((current_best_length.mean() - self.optimal_length.mean()) / self.optimal_length.mean()).item() * 100,
+                    escape_time, self.optimal_length.item(), self.optimal_length.mean().item(), temperature))
 
         # Final solution length calculation
         # current_best_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
