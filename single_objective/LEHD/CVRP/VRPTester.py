@@ -610,7 +610,7 @@ class VRPTester():
             # Create a problem name based on solution shape
             name = 'vrp'+str(self.env.solution.shape[1])
 
-            best_select_node_list, current_best_length = self.iterative_solution_improvement_sa_rrc(batch_size, current_step)
+            best_select_node_list, current_best_length = self.construct_initial_solution(batch_size, current_step)
             print('Get first complete solution!')
             
             # Get elapsed time
@@ -622,7 +622,7 @@ class VRPTester():
                 current_best_length.mean().item(), self.optimal_length.mean().item()))
 
             # Iterative solution improvement
-            current_best_length = self.iterative_solution_improvement(
+            current_best_length = self.iterative_solution_improvement_sa_rrc(
                 episode, clock, name,  batch_size, current_step, best_select_node_list
             )
             
