@@ -620,7 +620,7 @@ class VRPTester():
             best_length = float('inf')
             best_node_list = None
             
-            for i in range(10):
+            for i in range(5):
                 self.env = copy.deepcopy(original_env)
                 best_select_node_list, current_best_length = self.construct_initial_solution(batch_size, current_step)
                 
