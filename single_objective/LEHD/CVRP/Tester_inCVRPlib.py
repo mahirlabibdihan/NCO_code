@@ -508,7 +508,7 @@ class VRPTester():
         # Simulated Annealing Parameters
         T_init = 100  # Initial temperature
         T_min = 1e-3  # Minimum temperature
-        alpha = 0.98  # Cooling rate
+        alpha = 0.95  # Cooling rate
         temperature = T_init
         
         best_solution = best_select_node_list.clone()  # Initial best solution
