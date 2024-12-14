@@ -14,6 +14,22 @@ class Step_State:
     problems: torch.Tensor
 
 
+def tow_col_nodeflag(node_flag):
+    """
+    Convert 1D node flag list to 2D list of [node_index, flag]
+    
+    Args:
+        node_flag (list): Flat list of node flags
+    
+    Returns:
+        list: 2D list with [node_index, flag] pairs
+    """
+    tow_col_node_flag = []
+    V = int(len(node_flag) / 2)
+    for i in range(V):
+        tow_col_node_flag.append([node_flag[i], node_flag[V + i]])
+    return tow_col_node_flag
+    
 class VRPEnv:
     def __init__(self, **env_params):
         ####################################
@@ -29,30 +45,67 @@ class VRPEnv:
         self.selected_student_list = None
         self.episode = None
 
-    def load_problems(self, episode, batch_size, ):
+    def load_problems(self, episode, batch_size):
+        """
+        Load a batch of problems for Vehicle Routing Problem (VRP) optimization.
+        
+        Args:
+            episode (int): Starting index of the batch in the raw data
+            batch_size (int): Number of problems to load
+        
+        Preprocessing Steps:
+        1. Extract problem-specific data from raw datasets
+        2. Prepare node locations, demands, and capacities
+        3. Optionally sample subpaths
+        
+        Data Shapes:
+        - problems_nodes: (Batch, Vertices+1, 2) - Node coordinates
+        - Batch_demand: (Batch, Vertices+1) - Demand for each node
+        - Batch_capacity: (Batch, Vertices+1) - Vehicle capacity
+        - solution: (Batch, Vertices, 2) - Initial solution flags
+        - problems: (Batch, Vertices+1, 4) - Consolidated problem data
+        """
+        # Store episode and batch size for reference
         self.episode = episode
         self.batch_size = batch_size
 
+        # Extract problem nodes for the current batch
+        # Shape: (Batch, Vertices+1, 2) - Contains node coordinates
         self.problems_nodes = self.raw_data_nodes[episode:episode + batch_size]
-        # shape (B,V+1,2)
-        self.Batch_demand = self.raw_data_demand[episode:episode + batch_size]
-        # shape (B,V+1)
 
+        # Extract demands for each node in the batch
+        # Shape: (Batch, Vertices+1) - Demand for each node
+        self.Batch_demand = self.raw_data_demand[episode:episode + batch_size]
+
+        # Extract vehicle capacities for the batch
+        # Shape: (Batch, Vertices+1) - Initial capacity for each vehicle/problem
         self.Batch_capacity = self.raw_data_capacity[episode:episode + batch_size]
 
+        # Load initial solution flags
+        # Shape: (Batch, Vertices, 2) - Initial solution configuration
         self.solution = self.raw_data_node_flag[episode:episode + batch_size]
-        # shape (B,V,2)
-        self.Batch_capacity = self.Batch_capacity[:,None].repeat(1,self.solution.shape[1]+1)
-        # shape (B,V+1)
 
-        self.problems = torch.cat((self.problems_nodes,self.Batch_demand[:,:,None],
-                                   self.Batch_capacity[:,:,None]),dim=2)
-        # shape (B,V+1,4)
+        # Repeat capacity for each vertex (including depot)
+        # Transforms capacity from (Batch, 1) to (Batch, Vertices+1)
+        self.Batch_capacity = self.Batch_capacity[:,None].repeat(1, self.solution.shape[1]+1)
 
+        # Consolidate problem data into a single tensor
+        # Concatenate: 
+        # 1. Node coordinates (x,y)
+        # 2. Node demands
+        # 3. Vehicle capacities
+        # Resulting Shape: (Batch, Vertices+1, 4)
+        self.problems = torch.cat((self.problems_nodes,
+                                    self.Batch_demand[:,:,None],
+                                    self.Batch_capacity[:,:,None]),
+                                dim=2)
+
+        # Optional: Sample subpaths if enabled
         if self.sub_path:
             self.problems, self.solution = self.sampling_subpaths(self.problems, self.solution)
 
-        self.problem_size = self.problems.shape[1]-1
+        # Set problem size (number of vertices excluding depot)
+        self.problem_size = self.problems.shape[1] - 1
 
     def vrp_whole_and_solution_subrandom_inverse(self, solution):
 
@@ -174,7 +227,6 @@ class VRPEnv:
         solution = double_solution[x3.gt(0.5)[:,:,None].repeat(1,1,2)].reshape(batch_size,problem_size,2)
 
         return solution
-
 
     def sampling_subpaths(self, problems, solution, length_fix=False):
         # problems shape (B,V+1,4)
@@ -305,28 +357,107 @@ class VRPEnv:
         self.raw_data_demand = self.raw_data_demand[index]
         self.raw_data_cost = self.raw_data_cost[index]
         self.raw_data_node_flag = self.raw_data_node_flag[index]
+        
 
+    def load_raw_test_data(self, episode=1000000):
+        # Initialize lists for test data
+        self.raw_data_nodes = []
+        self.raw_data_capacity = []
+        self.raw_data_demand = []
+        self.raw_data_cost = []
+        self.raw_data_node_flag = []
+        
+        # Load data from file
+        for line in tqdm(open(self.data_path, "r").readlines()[0:episode], ascii=True):
+            line = line.split(",")
 
-    def load_raw_data(self,episode=1000000):
-        def tow_col_nodeflag(node_flag):
-            tow_col_node_flag = []
-            V = int(len(node_flag) / 2)
-            for i in range(V):
-                tow_col_node_flag.append([node_flag[i], node_flag[V + i]])
-            return tow_col_node_flag
+            # Find indices for different data components
+            depot_index = int(line.index('depot'))
+            customer_index = int(line.index('customer'))
+            capacity_index = int(line.index('capacity'))
+            demand_index = int(line.index('demand'))
+            cost_index = int(line.index('cost'))
+            node_flag_index = int(line.index('node_flag'))
 
+            # Extract depot location
+            depot = [[float(line[depot_index + 1]), float(line[depot_index + 2])]]
+            
+            # Extract customer locations
+            customer = [[float(line[idx]), float(line[idx + 1])] for idx in range(customer_index + 1, capacity_index, 2)]
+            
+            # Combine depot and customer locations
+            loc = depot + customer
+            
+            # Extract vehicle capacity
+            capacity = int(float(line[capacity_index + 1]))
+            
+            # Extract node demands (handle special case for zero demand)
+            if int(line[demand_index + 1]) ==0:
+                demand = [int(line[idx]) for idx in range(demand_index + 1, cost_index)]
+            else:
+                demand = [0] + [int(line[idx]) for idx in range(demand_index + 1, cost_index)]
+
+            # Extract cost
+            cost = float(line[cost_index + 1])
+            
+            # Extract and process node flags
+            node_flag = [int(line[idx]) for idx in range(node_flag_index + 1, len(line))]
+            node_flag = tow_col_nodeflag(node_flag)
+
+            # Store processed data
+            self.raw_data_nodes.append(loc)
+            self.raw_data_capacity.append(capacity)
+            self.raw_data_demand.append(demand)
+            self.raw_data_cost.append(cost)
+            self.raw_data_node_flag.append(node_flag)
+
+        # Convert to PyTorch tensors
+        self.raw_data_nodes = torch.tensor(self.raw_data_nodes, requires_grad=False)
+        # shape (B,V+1,2)  customer num + depot
+        self.raw_data_capacity = torch.tensor(self.raw_data_capacity, requires_grad=False)
+        # shape (B )
+        self.raw_data_demand = torch.tensor(self.raw_data_demand, requires_grad=False)
+        # shape (B,V+1) customer num + depot
+        self.raw_data_cost = torch.tensor(self.raw_data_cost, requires_grad=False)
+        # shape (B )
+        self.raw_data_node_flag = torch.tensor(self.raw_data_node_flag, requires_grad=False)
+        # shape (B,V,2)
+        
+        
+    def load_raw_data(self, episode=1000000):
+        """
+        Load raw data for Vehicle Routing Problem (VRP) dataset.
+        
+        This method handles data loading for both training and testing modes,
+        supporting large datasets by splitting the reading process.
+        
+        Args:
+            episode (int): Number of data points to load (default: 1,000,000)
+        
+        Data Processing Steps:
+        1. Parse CSV-like data file
+        2. Extract depot, customer locations, capacities, demands
+        3. Convert data to PyTorch tensors
+        4. Prepare data for different modes (train/test)
+        """
+    
         # Because the dataset is too large, I split it into two reads
 
+        # Training mode data loading
         if self.env_params['mode']=='train':
-
+            
+            # Initialize lists for first half of data
             self.raw_data_nodes_1 = []
             self.raw_data_capacity_1 = []
             self.raw_data_demand_1 = []
             self.raw_data_cost_1 = []
             self.raw_data_node_flag_1 = []
+            
+            # Load first half of the dataset
             for line in tqdm(open( self.data_path, "r").readlines()[0:int(0.5 * episode)], ascii=True):
                 line = line.split(",")
 
+                # Find indices for different data components
                 depot_index = int(line.index('depot'))
                 customer_index = int(line.index('customer'))
                 capacity_index = int(line.index('capacity'))
@@ -334,27 +465,40 @@ class VRPEnv:
                 cost_index = int(line.index('cost'))
                 node_flag_index = int(line.index('node_flag'))
 
+                # Extract depot location
                 depot = [[float(line[depot_index + 1]), float(line[depot_index + 2])]]
+                
+                # Extract customer locations
                 customer = [[float(line[idx]), float(line[idx + 1])] for idx in range(customer_index + 1, capacity_index, 2)]
 
+                # Combine depot and customer locations
                 loc = depot + customer
 
+                # Extract vehicle capacity
                 capacity = int(float(line[capacity_index + 1]))
+                
+                # Extract node demands (handle special case for zero demand)
                 if int(line[demand_index + 1]) == 0:
                     demand = [int(line[idx]) for idx in range(demand_index + 1, cost_index)]
                 else:
                     demand = [0] + [int(line[idx]) for idx in range(demand_index + 1, cost_index)]
                 # Include depot's demand, which is 0, in the first
 
+                # Extract cost
                 cost = float(line[cost_index + 1])
+                
+                # Extract and process node flags
                 node_flag = [int(line[idx]) for idx in range(node_flag_index + 1, len(line))]
                 node_flag = tow_col_nodeflag(node_flag)
+                
+                # Store processed data
                 self.raw_data_nodes_1.append(loc)
                 self.raw_data_capacity_1.append(capacity)
                 self.raw_data_demand_1.append(demand)
                 self.raw_data_cost_1.append(cost)
                 self.raw_data_node_flag_1.append(node_flag)
 
+            # Convert first half to PyTorch tensors
             self.raw_data_nodes_1 = torch.tensor(self.raw_data_nodes_1, requires_grad=False)
             # shape (B,V+1,2)  customer num + depot
             self.raw_data_capacity_1 = torch.tensor(self.raw_data_capacity_1, requires_grad=False)
@@ -366,11 +510,14 @@ class VRPEnv:
             self.raw_data_node_flag_1 = torch.tensor(self.raw_data_node_flag_1, requires_grad=False)
             # shape (B,V,2)
 
+            # Repeat similar process for second half of the dataset
             self.raw_data_nodes_2 = []
             self.raw_data_capacity_2 = []
             self.raw_data_demand_2 = []
             self.raw_data_cost_2 = []
             self.raw_data_node_flag_2 = []
+            
+            # Load second half of the dataset
             for line in tqdm(open(self.data_path, "r").readlines()[int(0.5 * episode):int(episode)], ascii=True):
                 line = line.split(",")
                 depot_index = int(line.index('depot'))
@@ -414,61 +561,16 @@ class VRPEnv:
             self.raw_data_node_flag_2 = torch.tensor(self.raw_data_node_flag_2, requires_grad=False)
             # shape (B,V,2)
 
+            # Concatenate both halves into final datasets
             self.raw_data_nodes = torch.cat((self.raw_data_nodes_1,self.raw_data_nodes_2),dim=0)
             self.raw_data_capacity = torch.cat((self.raw_data_capacity_1, self.raw_data_capacity_2), dim=0)
             self.raw_data_demand = torch.cat((self.raw_data_demand_1, self.raw_data_demand_2), dim=0)
             self.raw_data_cost = torch.cat((self.raw_data_cost_1, self.raw_data_cost_2), dim=0)
             self.raw_data_node_flag = torch.cat((self.raw_data_node_flag_1, self.raw_data_node_flag_2), dim=0)
 
-
+        # Test mode data loading
         if self.env_params['mode'] == 'test':
-
-            self.raw_data_nodes = []
-            self.raw_data_capacity = []
-            self.raw_data_demand = []
-            self.raw_data_cost = []
-            self.raw_data_node_flag = []
-            for line in tqdm(open(self.data_path, "r").readlines()[0:episode], ascii=True):
-                line = line.split(",")
-
-                depot_index = int(line.index('depot'))
-                customer_index = int(line.index('customer'))
-                capacity_index = int(line.index('capacity'))
-                demand_index = int(line.index('demand'))
-                cost_index = int(line.index('cost'))
-                node_flag_index = int(line.index('node_flag'))
-
-                depot = [[float(line[depot_index + 1]), float(line[depot_index + 2])]]
-                customer = [[float(line[idx]), float(line[idx + 1])] for idx in range(customer_index + 1, capacity_index, 2)]
-
-                loc = depot + customer
-                capacity = int(float(line[capacity_index + 1]))
-                if int(line[demand_index + 1]) ==0:
-                    demand = [int(line[idx]) for idx in range(demand_index + 1, cost_index)]
-                else:
-                    demand = [0] + [int(line[idx]) for idx in range(demand_index + 1, cost_index)]
-
-                cost = float(line[cost_index + 1])
-                node_flag = [int(line[idx]) for idx in range(node_flag_index + 1, len(line))]
-
-                node_flag = tow_col_nodeflag(node_flag)
-
-                self.raw_data_nodes.append(loc)
-                self.raw_data_capacity.append(capacity)
-                self.raw_data_demand.append(demand)
-                self.raw_data_cost.append(cost)
-                self.raw_data_node_flag.append(node_flag)
-
-            self.raw_data_nodes = torch.tensor(self.raw_data_nodes, requires_grad=False)
-            # shape (B,V+1,2)  customer num + depot
-            self.raw_data_capacity = torch.tensor(self.raw_data_capacity, requires_grad=False)
-            # shape (B )
-            self.raw_data_demand = torch.tensor(self.raw_data_demand, requires_grad=False)
-            # shape (B,V+1) customer num + depot
-            self.raw_data_cost = torch.tensor(self.raw_data_cost, requires_grad=False)
-            # shape (B )
-            self.raw_data_node_flag = torch.tensor(self.raw_data_node_flag, requires_grad=False)
-            # shape (B,V,2)
+            self.load_raw_test_data(episode)
 
         print(f'load raw dataset done!', )
 
@@ -598,43 +700,64 @@ class VRPEnv:
         plt.savefig(path+f'/{name}.pdf',bbox_inches='tight', pad_inches=0)
         # plt.show()
 
+    
     def cal_length(self, problems, order_node, order_flag):
+        """
+        The cal_length function calculates the total length of a route in a vehicle routing problem (VRP).
+        """
         # problems:   [B,V+1,2]
         # order_node: [B,V]
         # order_flag: [B,V]
+        
+        # Clone the order_node tensor
         order_node_ = order_node.clone()
 
+        # Clone the order_flag tensor
         order_flag_ = order_flag.clone()
 
+        # Create masks for order_flag values
         index_small = torch.le(order_flag_, 0.5)
         index_bigger = torch.gt(order_flag_, 0.5)
 
+        # Update order_flag based on the masks
         order_flag_[index_small] = order_node_[index_small]
         order_flag_[index_bigger] = 0
 
+        # Roll the order_node tensor
         roll_node = order_node_.roll(dims=1, shifts=1)
 
+        # Calculate the problem size
         problem_size = problems.shape[1] - 1
 
+        # Gather the order locations from problems
         order_gathering_index = order_node_.unsqueeze(2).expand(-1, problem_size, 2)
         order_loc = problems.gather(dim=1, index=order_gathering_index)
 
+        # Gather the roll locations from problems
         roll_gathering_index = roll_node.unsqueeze(2).expand(-1, problem_size, 2)
         roll_loc = problems.gather(dim=1, index=roll_gathering_index)
 
+        # Gather the flag locations from problems
         flag_gathering_index = order_flag_.unsqueeze(2).expand(-1, problem_size, 2)
         flag_loc = problems.gather(dim=1, index=flag_gathering_index)
 
+        # Calculate the squared differences for order locations
         order_lengths = ((order_loc - flag_loc) ** 2)
 
-        order_flag_[:,0]=0
+        # Set the first column of order_flag to 0
+        order_flag_[:,0] = 0
+
+        # Gather the flag locations again after modification
         flag_gathering_index = order_flag_.unsqueeze(2).expand(-1, problem_size, 2)
         flag_loc = problems.gather(dim=1, index=flag_gathering_index)
 
+        # Calculate the squared differences for roll locations
         roll_lengths = ((roll_loc - flag_loc) ** 2)
 
+        # Calculate the total length by summing the square roots of the differences
         length = (order_lengths.sum(2).sqrt() + roll_lengths.sum(2).sqrt()).sum(1)
 
+        # Return the calculated length
         return length
 
     def _get_travel_distance(self):
