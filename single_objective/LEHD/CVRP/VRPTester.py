@@ -450,7 +450,6 @@ class VRPTester():
         
         return current_best_length
 
-
     def _test_one_batch(self, episode, batch_size, clock=None, logger=None):
         """
         Test a batch of Vehicle Routing Problems (VRP) using a machine learning model.
