@@ -122,9 +122,9 @@ class VRPModel(nn.Module):
 
             probs = self.decoder(self.encoded_nodes, selected_node_list,self.capacity, remaining_capacity)
 
-            # selected_node_student = probs.argmax(dim=1)  # shape: B
-            k = 2  # Set your desired value for k
-            selected_node_student = top_k_sampling(probs, k)  # Top-K Sampling instead of argmax
+            selected_node_student = probs.argmax(dim=1)  # shape: B
+            # k = 2  # Set your desired value for k
+            # selected_node_student = top_k_sampling(probs, k)  # Top-K Sampling instead of argmax
             
             # p = 0.9  # Set your desired probability threshold (usually between 0.8 and 0.95)
             # selected_node_student = nucleus_sampling(probs, p)

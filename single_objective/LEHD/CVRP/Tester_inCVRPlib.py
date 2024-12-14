@@ -442,9 +442,9 @@ class VRPTester():
         budget = self.env_params['RRC_budget']
 
         # Simulated Annealing Parameters
-        T_init = 100  # Initial temperature
-        T_min = 1e-3  # Minimum temperature
-        alpha = 0.97  # Cooling rate
+        T_init = 0.01  # Initial temperature
+        T_min = 1e-5  # Minimum temperature
+        alpha = 0.98  # Cooling rate
         temperature = T_init
 
         # Track the best solution and its length
