@@ -537,20 +537,16 @@ class VRPTester():
                 before_reward, after_reward, first_node_index, length_of_subpath, double_solution, temperature
             )
             
-            # Accept the new solution
-            current_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
             
             best_select_node_list = after_repair_complete_solution
 
-            new_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
+            current_best_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
             
-            
-
             
             # If this is the best solution found so far, update best_solution
-            if new_length < best_solution_length.item():
+            if current_best_length.mean().item() < best_solution_length.item():
                 best_solution = best_select_node_list
-                best_solution_length = new_length.mean()
+                best_solution_length = current_best_length.mean()
 
             # Cool down the temperature
             temperature = max(T_min, temperature * alpha)
