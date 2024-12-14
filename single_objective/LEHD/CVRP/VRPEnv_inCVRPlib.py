@@ -124,7 +124,9 @@ class VRPEnv:
 
 
     def vrp_whole_and_solution_subrandom_inverse(self, solution):
-
+        """
+        This function introduces variability to VRP solutions by randomly flipping the sequence of sub-tours, padding sub-tours for uniformity, and re-mapping them to the original solution's structure. 
+        """
         clockwise_or_not = torch.rand(1)[0]
 
         if clockwise_or_not >= 0.5:
@@ -774,7 +776,9 @@ class VRPEnv:
         return travel_distances
 
     def destroy_solution(self, problem, complete_solution):
-
+        '''
+        This function appears to be part of a solution destruction or modification process in a problem-solving routine
+        '''
 
         self.problems, self.solution, first_node_index,length_of_subpath,double_solution = self.sampling_subpaths_repair(
             problem, complete_solution, mode=self.env_params['mode'])

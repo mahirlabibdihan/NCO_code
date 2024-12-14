@@ -293,8 +293,7 @@ class VRPTester():
         B_V = batch_size * 1
         while not done:
             loss_node, selected_teacher, selected_student, selected_flag_teacher, selected_flag_student = \
-                    self.model(state, self.env.selected_node_list, self.env.solution, current_step, 'greedy',
-                                raw_data_capacity=self.env.raw_data_capacity)  # 更新被选择的点和概率
+                    self.model(state, self.env.selected_node_list, self.env.solution, current_step, raw_data_capacity=self.env.raw_data_capacity)  # 更新被选择的点和概率
 
             if current_step == 0:
                 selected_flag_teacher = torch.ones(B_V, dtype=torch.int)
@@ -305,10 +304,10 @@ class VRPTester():
                 self.env.step(selected_teacher, selected_student, selected_flag_teacher, selected_flag_student)
 
 
-            best_select_node_list = torch.cat((self.env.selected_student_list.reshape(batch_size, -1, 1),
-                                                self.env.selected_student_flag.reshape(batch_size, -1, 1)), dim=2)
+        best_select_node_list = torch.cat((self.env.selected_student_list.reshape(batch_size, -1, 1),
+                                            self.env.selected_student_flag.reshape(batch_size, -1, 1)), dim=2)
 
-            current_best_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
+        current_best_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
             
         return best_select_node_list, current_best_length
 
