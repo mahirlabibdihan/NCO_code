@@ -540,15 +540,12 @@ class VRPTester():
 
             new_length = self.env._get_travel_distance_2(self.origin_problem, after_repair_complete_solution)
 
-            # Simulated Annealing Acceptance Criteria
-            current_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
-            delta_length = new_length.mean().item() - current_length.mean().item()
-
+            
             # Accept the new solution
             best_select_node_list = after_repair_complete_solution
             
             # If this is the best solution found so far, update best_solution
-            if new_length.mean().item() < best_solution_length.item():
+            if after_reward < best_solution_length.item():
                 best_solution = best_select_node_list
                 best_solution_length = new_length.mean()
 
@@ -565,9 +562,9 @@ class VRPTester():
                     escape_time, best_solution_length.item(), self.optimal_length.mean().item(), temperature))
 
         # Final solution length calculation
-        current_best_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
+        # current_best_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
         
-        return current_best_length
+        return best_solution_length
     
     def _test_one_batch(self, episode, batch_size, clock=None, logger=None):
         """
