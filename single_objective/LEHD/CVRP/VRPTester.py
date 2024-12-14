@@ -271,6 +271,9 @@ class VRPTester():
     def construct_initial_solution(self, batch_size, current_step):
         # Prepare initial state and get first step information
         state, reward, reward_student, done = self.env.pre_step()
+        
+        print(state)
+        raise ValueError('stop')
         # Prepare batch volume
         B_V = batch_size * 1
         while not done:
