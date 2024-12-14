@@ -248,8 +248,9 @@ class VRPTester():
         acceptance_probability = torch.exp(-delta_reward / temperature).clamp(max=1.0)
 
         # Determine if repair is needed (always accept better solutions or probabilistically accept worse ones)
-        if_repair = (before_reward > after_reward) | (torch.rand(1).item() < acceptance_probability)
-        
+        random_values = torch.rand(before_reward.size())  # Generate a tensor of random values of size k
+        if_repair = (before_reward > after_reward) | (random_values < acceptance_probability)
+                
         if before_reward > after_reward:
             print("Accept")
         elif if_repair:
