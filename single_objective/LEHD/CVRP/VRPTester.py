@@ -537,7 +537,7 @@ class VRPTester():
                 before_reward, after_reward, first_node_index, length_of_subpath, double_solution, temperature
             )
             
-            
+            print(after_repair_complete_solution.shape)
             best_select_node_list = after_repair_complete_solution
 
             current_best_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
