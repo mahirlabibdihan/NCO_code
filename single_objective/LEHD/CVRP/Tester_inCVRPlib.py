@@ -472,6 +472,7 @@ class VRPTester():
                 
             
             new_length = self.env._get_travel_distance_2(self.origin_problem, new_best_select_node_list)
+            
             current_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
             delta_length = new_length.mean().item() - current_length.mean().item()
             

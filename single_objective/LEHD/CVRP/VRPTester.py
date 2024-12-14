@@ -532,20 +532,23 @@ class VRPTester():
             after_reward = - reward_student
 
             # Decide whether to keep the repaired solution using Simulated Annealing
-            after_repair_complete_solution, if_repair = self.decide_whether_to_repair_solution_sa(
+            after_repair_complete_solution = self.decide_whether_to_repair_solution_sa(
                 after_repair_sub_solution,
                 before_reward, after_reward, first_node_index, length_of_subpath, double_solution, temperature
             )
-
-
-            new_length = self.env._get_travel_distance_2(self.origin_problem, after_repair_complete_solution)
-
             
             # Accept the new solution
+            current_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
+            
             best_select_node_list = after_repair_complete_solution
+
+            new_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
+            
+            
+
             
             # If this is the best solution found so far, update best_solution
-            if after_reward < best_solution_length.item():
+            if new_length < best_solution_length.item():
                 best_solution = best_select_node_list
                 best_solution_length = new_length.mean()
 
