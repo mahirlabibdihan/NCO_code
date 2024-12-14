@@ -473,9 +473,10 @@ class VRPTester():
         budget = self.env_params['RRC_budget']
 
         # Simulated Annealing Parameters
-        T_init = 100  # Initial temperature
+        # Iteration: 100
+        T_init = 10  # Initial temperature
         T_min = 1e-3  # Minimum temperature
-        alpha = 0.95  # Cooling rate
+        alpha = 0.98  # Cooling rate
         temperature = T_init
         
         best_solution = best_select_node_list.clone()  # Initial best solution
@@ -609,7 +610,7 @@ class VRPTester():
             # Create a problem name based on solution shape
             name = 'vrp'+str(self.env.solution.shape[1])
 
-            best_select_node_list, current_best_length = self.construct_initial_solution(batch_size, current_step)
+            best_select_node_list, current_best_length = self.iterative_solution_improvement_sa_rrc(batch_size, current_step)
             print('Get first complete solution!')
             
             # Get elapsed time
