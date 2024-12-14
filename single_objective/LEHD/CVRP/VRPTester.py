@@ -486,6 +486,8 @@ class VRPTester():
         alpha = 0.98  # Cooling rate
         temperature = T_init
         
+        solution_lengths = []
+        
         best_solution = best_select_node_list.clone()  # Initial best solution
         best_solution_length = self.env._get_travel_distance_2(self.origin_problem, best_solution).mean()
 
@@ -549,6 +551,7 @@ class VRPTester():
 
             current_best_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
             
+            solution_lengths.append(current_best_length.mean().item())
             
             # If this is the best solution found so far, update best_solution
             if current_best_length.mean().item() < best_solution_length.item():
@@ -568,7 +571,17 @@ class VRPTester():
                         ((current_best_length.mean() - self.optimal_length.mean()) / self.optimal_length.mean()).item() * 100,
                     escape_time,current_best_length.mean().item(), self.optimal_length.mean().item()))
 
-
+        # Plot solution lengths
+        plt.figure(figsize=(10, 6))
+        plt.plot(solution_lengths, marker='o')
+        plt.title('Solution Length over Iterations')
+        plt.xlabel('Iteration')
+        plt.ylabel('Solution Length')
+        plt.grid(True)
+        plt.tight_layout()
+        plt.savefig('solution_length_plot.png')
+        plt.close()
+        
         # Final solution length calculation
         # current_best_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
         
@@ -614,31 +627,6 @@ class VRPTester():
             # Create a problem name based on solution shape
             name = 'vrp'+str(self.env.solution.shape[1])
 
-            # Create backup of self.env
-            # original_env = copy.deepcopy(self.env)
-            # best_env = copy.deepcopy(self.env)
-            # best_length = float('inf')
-            # best_node_list = None
-            
-            # for i in range(5):
-            #     self.env = copy.deepcopy(original_env)
-            #     best_select_node_list, current_best_length = self.construct_initial_solution(batch_size, current_step)
-                
-            #     if current_best_length.mean() < best_length:
-            #         best_length = current_best_length.mean()
-            #         best_env = copy.deepcopy(self.env)
-            #         best_node_list = copy.deepcopy(best_select_node_list)
-                    
-            #     # Log initial solution details
-            #     escape_time, _ = clock.get_est_string(1, 1)
-            #     self.logger.info("Greedy, name:{}, gap:{:5f} %, Elapsed[{}], stu_l:{:5f} , opt_l:{:5f}".format(name,
-            #         ((current_best_length.mean() - self.optimal_length.mean()) / self.optimal_length.mean()).item() * 100, escape_time,
-            #         current_best_length.mean().item(), self.optimal_length.mean().item()))
-                
-            # self.env = copy.deepcopy(best_env)
-            # best_select_node_list = copy.deepcopy(best_node_list)
-            # current_best_length = copy.deepcopy(best_length)
-            
             best_select_node_list, current_best_length = self.construct_initial_solution(batch_size, current_step)
             print('Get first complete solution!') 
             
