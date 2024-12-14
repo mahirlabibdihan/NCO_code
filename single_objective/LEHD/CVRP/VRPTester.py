@@ -272,8 +272,7 @@ class VRPTester():
         # Prepare initial state and get first step information
         state, reward, reward_student, done = self.env.pre_step()
         
-        print(state)
-        raise ValueError('stop')
+       
         # Prepare batch volume
         B_V = batch_size * 1
         while not done:
@@ -612,17 +611,19 @@ class VRPTester():
             # Create a problem name based on solution shape
             name = 'vrp'+str(self.env.solution.shape[1])
 
-            best_select_node_list, current_best_length = self.construct_initial_solution(batch_size, current_step)
-            print('Get first complete solution!')
-            
-            # Get elapsed time
-            escape_time, _ = clock.get_est_string(1, 1)
+            for i in range(5):
+                best_select_node_list, current_best_length = self.construct_initial_solution(batch_size, current_step)
+                print('Get first complete solution!')
+                
+                # Get elapsed time
+                escape_time, _ = clock.get_est_string(1, 1)
 
-            # Log initial solution details
-            self.logger.info("Greedy, name:{}, gap:{:5f} %, Elapsed[{}], stu_l:{:5f} , opt_l:{:5f}".format(name,
-                ((current_best_length.mean() - self.optimal_length.mean()) / self.optimal_length.mean()).item() * 100, escape_time,
-                current_best_length.mean().item(), self.optimal_length.mean().item()))
+                # Log initial solution details
+                self.logger.info("Greedy, name:{}, gap:{:5f} %, Elapsed[{}], stu_l:{:5f} , opt_l:{:5f}".format(name,
+                    ((current_best_length.mean() - self.optimal_length.mean()) / self.optimal_length.mean()).item() * 100, escape_time,
+                    current_best_length.mean().item(), self.optimal_length.mean().item()))
 
+            raise ValueError('Stop here')
             # Iterative solution improvement
             current_best_length = self.iterative_solution_improvement_sa_rrc(
                 episode, clock, name,  batch_size, current_step, best_select_node_list
