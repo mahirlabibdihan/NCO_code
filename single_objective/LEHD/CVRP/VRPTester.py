@@ -248,7 +248,7 @@ class VRPTester():
         acceptance_probability = torch.exp(-delta_reward / temperature).clamp(max=1.0)
 
         # Determine if repair is needed (always accept better solutions or probabilistically accept worse ones)
-        if_repair = (before_reward > after_reward) # | (torch.rand(1).item() < acceptance_probability)
+        if_repair = (before_reward > after_reward) | (torch.rand(1).item() < acceptance_probability)
 
         # Update the double solution if repair is needed
         need_to_repari_double_solution = double_solution[if_repair]
@@ -264,7 +264,7 @@ class VRPTester():
         after_repair_complete_solution = double_solution[x8.unsqueeze(2).repeat(1, 1, 2)].reshape(batch_size, the_whole_problem_size, -1)
 
         # Return the complete solution after repair
-        return after_repair_complete_solution
+        return after_repair_complete_solution, if_repair
     
     def construct_initial_solution(self, batch_size, current_step):
         # Prepare initial state and get first step information
@@ -474,7 +474,7 @@ class VRPTester():
 
         # Simulated Annealing Parameters
         # Iteration: 100
-        T_init = 10  # Initial temperature
+        T_init = 100  # Initial temperature
         T_min = 1e-3  # Minimum temperature
         alpha = 0.98  # Cooling rate
         temperature = T_init
@@ -532,7 +532,7 @@ class VRPTester():
             after_reward = - reward_student
 
             # Decide whether to keep the repaired solution using Simulated Annealing
-            after_repair_complete_solution = self.decide_whether_to_repair_solution_sa(
+            after_repair_complete_solution, if_repair = self.decide_whether_to_repair_solution_sa(
                 after_repair_sub_solution,
                 before_reward, after_reward, first_node_index, length_of_subpath, double_solution, temperature
             )
@@ -544,14 +544,13 @@ class VRPTester():
             current_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
             delta_length = new_length.mean().item() - current_length.mean().item()
 
-            if delta_length < 0 or torch.rand(1).item() < torch.exp(torch.tensor(-delta_length / temperature)):
-                # Accept the new solution
-                best_select_node_list = after_repair_complete_solution
-                
-                # If this is the best solution found so far, update best_solution
-                if new_length.mean().item() < best_solution_length.item():
-                    best_solution = best_select_node_list
-                    best_solution_length = new_length.mean()
+            # Accept the new solution
+            best_select_node_list = after_repair_complete_solution
+            
+            # If this is the best solution found so far, update best_solution
+            if new_length.mean().item() < best_solution_length.item():
+                best_solution = best_select_node_list
+                best_solution_length = new_length.mean()
 
             # Cool down the temperature
             temperature = max(T_min, temperature * alpha)
