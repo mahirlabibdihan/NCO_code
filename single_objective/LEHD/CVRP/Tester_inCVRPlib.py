@@ -350,6 +350,8 @@ class VRPTester():
         
         return current_best_length
 
+   
+    
     def get_routes(self, solution):
         problem_size = solution.shape[0]
         # Step 1: Identify routes based on the `flag` values (1 indicates start of a new route)
@@ -639,7 +641,7 @@ class VRPTester():
             ####################################################
 
             # Iterative solution improvement
-            current_best_length = self.iterative_solution_improvement(
+            current_best_length = self.iterative_solution_improvement_sa_rrc(
                 episode, clock, name,  batch_size, current_step, best_select_node_list
             )
             # current_best_length = self.iterative_solution_improvement_sa(
