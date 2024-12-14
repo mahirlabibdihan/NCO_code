@@ -556,6 +556,11 @@ class VRPTester():
 
             # Log solution improvement details
             self.logger.info(
+                "RRC step{}, name:{}, gap:{:6f} %, Elapsed[{}], stu_l:{:5f} , opt_l:{:5f}".format(
+                        bbbb, name, ((current_best_length.mean() - self.optimal_length.mean()) / self.optimal_length.mean()).item() * 100,
+                    escape_time,current_best_length.mean().item(), self.optimal_length.mean().item()))
+            
+            self.logger.info(
                 "RRC step{}, name:{}, gap:{:6f} %, Elapsed[{}], stu_l:{:5f} , opt_l:{:5f}, Temp:{:5f}".format(
                     bbbb, name, ((best_solution_length - self.optimal_length.mean()) / self.optimal_length.mean()).item() * 100,
                     escape_time, best_solution_length.item(), self.optimal_length.mean().item(), temperature))
