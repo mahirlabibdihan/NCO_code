@@ -406,6 +406,8 @@ class VRPTester():
     def iterative_solution_improvement(self, episode, clock, name, batch_size, current_step, best_select_node_list):
         budget = self.env_params['RRC_budget']
 
+        solution_lengths = []
+        
         for bbbb in range(budget):
             torch.cuda.empty_cache()
 
@@ -464,6 +466,8 @@ class VRPTester():
 
             current_best_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
 
+            solution_lengths.append(current_best_length.mean().item())
+            
             escape_time, _ = clock.get_est_string(1, 1)
 
             self.logger.info(
@@ -472,6 +476,16 @@ class VRPTester():
                     escape_time,current_best_length.mean().item(), self.optimal_length.mean().item()))
 
         current_best_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
+        
+        plt.figure(figsize=(10, 6))
+        plt.plot(solution_lengths, marker='o')
+        plt.title('Solution Length over Iterations')
+        plt.xlabel('Iteration')
+        plt.ylabel('Solution Length')
+        plt.grid(True)
+        plt.tight_layout()
+        plt.savefig('solution_length_plot.png')
+        plt.close()
         
         return current_best_length
 
@@ -640,7 +654,7 @@ class VRPTester():
                 current_best_length.mean().item(), self.optimal_length.mean().item()))
 
             # Iterative solution improvement
-            current_best_length = self.iterative_solution_improvement_sa_rrc(
+            current_best_length = self.iterative_solution_improvement(
                 episode, clock, name,  batch_size, current_step, best_select_node_list
             )
             
