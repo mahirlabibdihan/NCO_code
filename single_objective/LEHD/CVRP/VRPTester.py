@@ -481,7 +481,7 @@ class VRPTester():
 
         # Simulated Annealing Parameters
         # Iteration: 100
-        T_init = 0.01  # Initial temperature
+        T_init = 10  # Initial temperature
         T_min = 1e-5  # Minimum temperature
         alpha = 0.98  # Cooling rate
         temperature = T_init
@@ -615,29 +615,31 @@ class VRPTester():
             name = 'vrp'+str(self.env.solution.shape[1])
 
             # Create backup of self.env
-            original_env = copy.deepcopy(self.env)
-            best_env = copy.deepcopy(self.env)
-            best_length = float('inf')
-            best_node_list = None
+            # original_env = copy.deepcopy(self.env)
+            # best_env = copy.deepcopy(self.env)
+            # best_length = float('inf')
+            # best_node_list = None
             
-            for i in range(5):
-                self.env = copy.deepcopy(original_env)
-                best_select_node_list, current_best_length = self.construct_initial_solution(batch_size, current_step)
+            # for i in range(5):
+            #     self.env = copy.deepcopy(original_env)
+            #     best_select_node_list, current_best_length = self.construct_initial_solution(batch_size, current_step)
                 
-                if current_best_length.mean() < best_length:
-                    best_length = current_best_length.mean()
-                    best_env = copy.deepcopy(self.env)
-                    best_node_list = copy.deepcopy(best_select_node_list)
+            #     if current_best_length.mean() < best_length:
+            #         best_length = current_best_length.mean()
+            #         best_env = copy.deepcopy(self.env)
+            #         best_node_list = copy.deepcopy(best_select_node_list)
                     
-                # Log initial solution details
-                escape_time, _ = clock.get_est_string(1, 1)
-                self.logger.info("Greedy, name:{}, gap:{:5f} %, Elapsed[{}], stu_l:{:5f} , opt_l:{:5f}".format(name,
-                    ((current_best_length.mean() - self.optimal_length.mean()) / self.optimal_length.mean()).item() * 100, escape_time,
-                    current_best_length.mean().item(), self.optimal_length.mean().item()))
+            #     # Log initial solution details
+            #     escape_time, _ = clock.get_est_string(1, 1)
+            #     self.logger.info("Greedy, name:{}, gap:{:5f} %, Elapsed[{}], stu_l:{:5f} , opt_l:{:5f}".format(name,
+            #         ((current_best_length.mean() - self.optimal_length.mean()) / self.optimal_length.mean()).item() * 100, escape_time,
+            #         current_best_length.mean().item(), self.optimal_length.mean().item()))
                 
-            self.env = copy.deepcopy(best_env)
-            best_select_node_list = copy.deepcopy(best_node_list)
-            current_best_length = copy.deepcopy(best_length)
+            # self.env = copy.deepcopy(best_env)
+            # best_select_node_list = copy.deepcopy(best_node_list)
+            # current_best_length = copy.deepcopy(best_length)
+            
+            best_select_node_list, current_best_length = self.construct_initial_solution(batch_size, current_step)
             print('Get first complete solution!') 
             
             
