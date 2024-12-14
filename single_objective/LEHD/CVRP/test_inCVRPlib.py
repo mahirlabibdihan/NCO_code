@@ -22,7 +22,7 @@ from LEHD.CVRP.Tester_inCVRPlib import VRPTester as Tester
 problem_size = 0      # testing problem size
 test_in_vrplib = True  # test in vrplib or not
 Use_RRC = True          # decode method: use RRC or not (greedy)
-RRC_budget = 75         # RRC budget
+RRC_budget = 100         # RRC budget
 
 ########### model ###############
 
