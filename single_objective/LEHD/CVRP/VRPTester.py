@@ -275,6 +275,8 @@ class VRPTester():
        
         # Prepare batch volume
         B_V = batch_size * 1
+        
+
         while not done:
             loss_node, selected_teacher, selected_student, selected_flag_teacher, selected_flag_student = \
                     self.model(state, self.env.selected_node_list, self.env.solution, current_step, raw_data_capacity=self.env.raw_data_capacity)  # 更新被选择的点和概率
@@ -478,7 +480,7 @@ class VRPTester():
 
         # Simulated Annealing Parameters
         # Iteration: 100
-        T_init = 0.1  # Initial temperature
+        T_init = 0.01  # Initial temperature
         T_min = 1e-5  # Minimum temperature
         alpha = 0.98  # Cooling rate
         temperature = T_init
@@ -611,8 +613,31 @@ class VRPTester():
             # Create a problem name based on solution shape
             name = 'vrp'+str(self.env.solution.shape[1])
 
-            best_select_node_list, current_best_length = self.construct_initial_solution(batch_size, current_step)
-            print('Get first complete solution!')
+            # Create backup of self.env
+            original_env = self.env.clone()
+            best_env = self.env.clone()
+            best_length = float('inf')
+            best_node_list = None
+            
+            for i in range(10):
+                self.env = original_env.clone()
+                best_select_node_list, current_best_length = self.construct_initial_solution(batch_size, current_step)
+                
+                if current_best_length.mean() < best_length:
+                    best_length = current_best_length.mean()
+                    best_env = self.env.clone()
+                    best_node_list = best_select_node_list.clone()
+                    
+                    # Log initial solution details
+                    self.logger.info("Greedy, name:{}, gap:{:5f} %, Elapsed[{}], stu_l:{:5f} , opt_l:{:5f}".format(name,
+                        ((current_best_length.mean() - self.optimal_length.mean()) / self.optimal_length.mean()).item() * 100, escape_time,
+                        current_best_length.mean().item(), self.optimal_length.mean().item()))
+                
+            self.env = best_env.clone()
+            best_select_node_list = best_node_list.clone()
+            current_best_length = best_length.clone()
+            print('Get first complete solution!') 
+            
             
             # Get elapsed time
             escape_time, _ = clock.get_est_string(1, 1)
