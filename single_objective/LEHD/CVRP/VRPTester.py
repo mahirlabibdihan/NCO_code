@@ -630,6 +630,7 @@ class VRPTester():
                     best_node_list = copy.deepcopy(best_select_node_list)
                     
                     # Log initial solution details
+                    escape_time, _ = clock.get_est_string(1, 1)
                     self.logger.info("Greedy, name:{}, gap:{:5f} %, Elapsed[{}], stu_l:{:5f} , opt_l:{:5f}".format(name,
                         ((current_best_length.mean() - self.optimal_length.mean()) / self.optimal_length.mean()).item() * 100, escape_time,
                         current_best_length.mean().item(), self.optimal_length.mean().item()))
