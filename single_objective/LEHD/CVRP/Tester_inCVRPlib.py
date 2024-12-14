@@ -350,8 +350,6 @@ class VRPTester():
         
         return current_best_length
 
-   
-    
     def get_routes(self, solution):
         problem_size = solution.shape[0]
         # Step 1: Identify routes based on the `flag` values (1 indicates start of a new route)
