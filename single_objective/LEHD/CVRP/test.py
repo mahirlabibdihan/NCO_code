@@ -37,7 +37,7 @@ if not Use_RRC:
 mode = 'test'
 test_paras = {
    # problem_size: [filename, episode, batch]
-    100: [ 'vrp100_test_lkh.txt',10000,10000],
+    100: [ 'vrp100_test_lkh.txt',10000,10],
     200: ['vrp200_test_lkh.txt', 128, 128],
     500: ['vrp500_test_lkh.txt', 128, 128],
     1000: ['vrp1000_test_lkh.txt', 128, 128],

@@ -264,7 +264,7 @@ class VRPTester():
         after_repair_complete_solution = double_solution[x8.unsqueeze(2).repeat(1, 1, 2)].reshape(batch_size, the_whole_problem_size, -1)
 
         # Return the complete solution after repair
-        return after_repair_complete_solution, if_repair
+        return after_repair_complete_solution
     
     def construct_initial_solution(self, batch_size, current_step):
         # Prepare initial state and get first step information
@@ -537,7 +537,7 @@ class VRPTester():
                 before_reward, after_reward, first_node_index, length_of_subpath, double_solution, temperature
             )
             
-            print(after_repair_complete_solution.shape)
+            print(after_repair_complete_solution)
             best_select_node_list = after_repair_complete_solution
 
             current_best_length = self.env._get_travel_distance_2(self.origin_problem, best_select_node_list)
