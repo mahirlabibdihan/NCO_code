@@ -476,7 +476,7 @@ class VRPTester():
 
         # Simulated Annealing Parameters
         # Iteration: 100
-        T_init = 1  # Initial temperature
+        T_init = 0.1  # Initial temperature
         T_min = 1e-5  # Minimum temperature
         alpha = 0.98  # Cooling rate
         temperature = T_init
