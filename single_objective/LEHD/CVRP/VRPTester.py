@@ -531,7 +531,7 @@ class VRPTester():
             after_reward = - reward_student
 
             # Decide whether to keep the repaired solution using Simulated Annealing
-            after_repair_complete_solution = self.decide_whether_to_repair_solution(
+            after_repair_complete_solution = self.decide_whether_to_repair_solution_sa(
                 after_repair_sub_solution,
                 before_reward, after_reward, first_node_index, length_of_subpath, double_solution, temperature
             )
