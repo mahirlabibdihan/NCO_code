@@ -249,6 +249,11 @@ class VRPTester():
 
         # Determine if repair is needed (always accept better solutions or probabilistically accept worse ones)
         if_repair = (before_reward > after_reward) | (torch.rand(1).item() < acceptance_probability)
+        
+        if before_reward > after_reward:
+            print("Accept")
+        elif if_repair:
+            print("Accept with prob")
 
         # Update the double solution if repair is needed
         need_to_repari_double_solution = double_solution[if_repair]
