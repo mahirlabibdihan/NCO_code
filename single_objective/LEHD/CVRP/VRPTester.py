@@ -4,6 +4,7 @@ import torch
 from LEHD.CVRP.VRPModel import VRPModel as Model
 from LEHD.CVRP.VRPEnv import VRPEnv as Env
 from LEHD.utils.utils import *
+import copy
 # os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
 class VRPTester():
@@ -614,28 +615,28 @@ class VRPTester():
             name = 'vrp'+str(self.env.solution.shape[1])
 
             # Create backup of self.env
-            original_env = self.env.clone()
-            best_env = self.env.clone()
+            original_env = copy.deepcopy(self.env)
+            best_env = copy.deepcopy(self.env)
             best_length = float('inf')
             best_node_list = None
             
             for i in range(10):
-                self.env = original_env.clone()
+                self.env = copy.deepcopy(original_env)
                 best_select_node_list, current_best_length = self.construct_initial_solution(batch_size, current_step)
                 
                 if current_best_length.mean() < best_length:
                     best_length = current_best_length.mean()
-                    best_env = self.env.clone()
-                    best_node_list = best_select_node_list.clone()
+                    best_env = copy.deepcopy(self.env)
+                    best_node_list = copy.deepcopy(best_select_node_list)
                     
                     # Log initial solution details
                     self.logger.info("Greedy, name:{}, gap:{:5f} %, Elapsed[{}], stu_l:{:5f} , opt_l:{:5f}".format(name,
                         ((current_best_length.mean() - self.optimal_length.mean()) / self.optimal_length.mean()).item() * 100, escape_time,
                         current_best_length.mean().item(), self.optimal_length.mean().item()))
                 
-            self.env = best_env.clone()
-            best_select_node_list = best_node_list.clone()
-            current_best_length = best_length.clone()
+            self.env = copy.deepcopy(best_env)
+            best_select_node_list = copy.deepcopy(best_node_list)
+            current_best_length = copy.deepcopy(best_length)
             print('Get first complete solution!') 
             
             
