@@ -468,6 +468,7 @@ class VRPTester():
         
         return current_best_length
 
+
     def iterative_solution_improvement_sa_rrc(self, episode, clock, name, batch_size, current_step, best_select_node_list):
         budget = self.env_params['RRC_budget']
 
@@ -620,7 +621,7 @@ class VRPTester():
                 current_best_length.mean().item(), self.optimal_length.mean().item()))
 
             # Iterative solution improvement
-            current_best_length = self.iterative_solution_improvement_sa_rrc(
+            current_best_length = self.iterative_solution_improvement(
                 episode, clock, name,  batch_size, current_step, best_select_node_list
             )
             
