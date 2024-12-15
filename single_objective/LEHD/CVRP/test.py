@@ -25,7 +25,7 @@ problem_size = 1000
 Use_RRC = True
 
 # RRC budget
-RRC_budget = 100
+RRC_budget = 200
 
 ########### model ###############
 model_load_path = 'result/20230817_235537_train'
