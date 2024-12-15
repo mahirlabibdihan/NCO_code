@@ -19,7 +19,7 @@ from LEHD.CVRP.VRPTester import VRPTester as Tester
 # parameters
 
 # testing problem size
-problem_size = 500
+problem_size = 200
 
 # decode method: use RRC or not (greedy)
 Use_RRC = True
