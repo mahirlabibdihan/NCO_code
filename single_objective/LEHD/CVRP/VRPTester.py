@@ -495,7 +495,7 @@ class VRPTester():
 
         # Simulated Annealing Parameters
         # Iteration: 100
-        T_init = 1  # Initial temperature
+        T_init = 0.01  # Initial temperature
         T_min = 1e-5  # Minimum temperature
         alpha = 0.98  # Cooling rate
         temperature = T_init
@@ -654,7 +654,7 @@ class VRPTester():
                 current_best_length.mean().item(), self.optimal_length.mean().item()))
 
             # Iterative solution improvement
-            current_best_length = self.iterative_solution_improvement(
+            current_best_length = self.iterative_solution_improvement_sa_rrc(
                 episode, clock, name,  batch_size, current_step, best_select_node_list
             )
             
